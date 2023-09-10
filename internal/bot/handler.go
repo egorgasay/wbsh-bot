@@ -1,8 +1,7 @@
 package bot
 
 import (
-	"bot/internal/entity"
-	"bytes"
+	"bot/internal/service"
 	"fmt"
 	api "gopkg.in/telegram-bot-api.v4"
 	"log"
@@ -34,11 +33,38 @@ func (b *Bot) handleStart(msg *api.Message) {
 	}
 }
 
+func toDay(i int) string {
+	switch i {
+	case 0:
+		return "Понедельник"
+	case 1:
+		return "Вторник"
+	case 2:
+		return "Среда"
+	case 3:
+		return "Четверг"
+	case 4:
+		return "Пятница"
+	case 5:
+		return "Суббота"
+	case 6:
+		return "Воскресенье"
+	}
+
+	return ""
+}
+
+func findGroup(pe service.PairEntity, gid int) (service.Pair, error) {
+	for _, p := range pe {
+		if p.Group == gid || p.Group == 0 {
+			return p, nil
+		}
+	}
+	return service.Pair{}, fmt.Errorf("group not found")
+}
+
 // handleMessage handle callbacks from user.
 func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
-	if b.logic.IsPaused() {
-		return
-	}
 
 	markup := api.NewInlineKeyboardMarkup()
 	split := strings.Split(query.Data, "::")
@@ -49,117 +75,68 @@ func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
 	defer b.logger.Sync()
 
 	text := split[0]
-	pathToFile := ""
+	// pathToFile := ""
 
 	switch text {
-	case items:
-		err := b.formItems()
+	case "Расписание":
+		gn := "04 74-20"
+
+		offset, err := strconv.Atoi(split[1])
 		if err != nil {
-			b.logger.Warn(err.Error())
-		}
-		pathToFile = allItemsImage
-		text = itemsMessage
-		markup = itemsKeyboard
-	case height:
-		text = heightFeedbackMessage
-		markup = heightKeyboard
-	case address:
-		markup = addressKeyboard
-		text = addressFeedbackMessage
-	case start:
-		markup = startKeyboard
-		text = startMessage
-		pathToFile = startImage
-	case rate:
-		if len(split) != 2 {
-			return
+			b.logger.Warn(fmt.Sprintf("get offset error: %v", err.Error()))
 		}
 
-		num, err := strconv.Atoi(split[1])
+		memberOfGroup := 2
+
+		day, err := b.schedule.GetDayByGroup(gn, offset)
 		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		b.logic.AddRate(num)
-
-		if num > 3 {
-			markup = thxFeedbackKeyboard
-			text = thxFeedbackMessage
+			b.logger.Warn(fmt.Sprintf("get day error: %v", err.Error()))
+			text = "Ошибка получения расписания"
 		} else {
-			markup = sorryFeedbackKeyboard
-			text = sorryFeedbackMessage
+			var sb strings.Builder
+			text = "Нет пар на этот день"
+			if len(day) > 0 {
+				sb.WriteString(fmt.Sprintf("День: %s\n\n", toDay(offset)))
+			}
+
+			for i, pairE := range day {
+				actualPair, err := findGroup(pairE, memberOfGroup)
+				if err != nil {
+					sb.WriteString(
+						fmt.Sprintf(
+							"№%d\nПара у другой группы\n\n", i+1,
+						),
+					)
+				} else {
+					sb.WriteString(
+						fmt.Sprintf(
+							"№%d\nПредмет: %s\nКабинет: %s\nПреподаватель: %s\n\n",
+							i+1, actualPair.Subject, actualPair.Room, actualPair.Teacher,
+						),
+					)
+				}
+			}
+
+			text = sb.String()
+			markup = scheduleKeyboard
 		}
-	case feedBack:
-		markup = feedBackKeyboard
-		text = feedbackMessage
-	case sorryHeight:
-		markup = heightKeyboard
-		text = sorryHeightMessage
-	case size:
-		if len(split) != 2 {
-			markup = heightKeyboard
-			text = sorryHeightMessage
-			break
-		}
-		markup = thxFeedbackKeyboard
-		text = "Ваш размер: " + split[1]
-	case info:
-		markup = infoKeyboard
-		var bytesArray []byte
-
-		information := entity.Information{Avg: b.logic.GetRate()}
-
-		buf := bytes.NewBuffer(bytesArray)
-		err := infoTemplate.Execute(buf, information)
-		if err != nil {
-			b.logger.Warn(err.Error())
-			return
-		}
-
-		text = buf.String()
-	case item:
-		if len(split) != 2 {
-			return
-		}
-
-		item, err := b.logic.GetItemByName(split[1])
-		if err != nil {
-			b.logger.Warn(err.Error())
-			return
-		}
-
-		if item.GetQuantity() == 0 {
-			markup = soldKeyboard
-		} else {
-			markup = buyKeyboard
-		}
-
-		pathToFile = item.GetImage()
-
-		var bytesArray []byte
-		buf := bytes.NewBuffer(bytesArray)
-		err = itemTemplate.Execute(buf, item)
-		if err != nil {
-			b.logger.Warn(err.Error())
-			return
-		}
-
-		text = buf.String()
 	}
 
 	var msg api.Chattable
+	msgText := api.NewMessage(query.Message.Chat.ID, text)
+	msgText.ReplyMarkup = markup
+	msg = msgText
 
-	if pathToFile != "" {
-		msgWithPhoto := api.NewPhotoUpload(query.Message.Chat.ID, pathToFile)
-		msgWithPhoto.Caption = text
-		msgWithPhoto.ReplyMarkup = markup
-		msg = msgWithPhoto
-	} else {
-		msgText := api.NewMessage(query.Message.Chat.ID, text)
-		msgText.ReplyMarkup = markup
-		msg = msgText
-	}
+	//if pathToFile != "" {
+	//	msgWithPhoto := api.NewPhotoUpload(query.Message.Chat.ID, pathToFile)
+	//	msgWithPhoto.Caption = text
+	//	msgWithPhoto.ReplyMarkup = markup
+	//	msg = msgWithPhoto
+	//} else {
+	//	msgText := api.NewMessage(query.Message.Chat.ID, text)
+	//	msgText.ReplyMarkup = markup
+	//	msg = msgText
+	//}
 
 	if _, err := b.Send(msg); err != nil {
 		b.logger.Warn(fmt.Sprintf("send error: %v", err.Error()))

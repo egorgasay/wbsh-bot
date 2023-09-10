@@ -8,24 +8,41 @@ import (
 	"strings"
 )
 
-type Schedule struct {
+type ScheduleService struct {
 	path          string
 	sheetName     string
 	maxPairPerDay int
 	storage       *storage.Storage
-	m             map[group]WorkWeek
+	schedule      map[group]WorkWeek
 }
 
-func NewSchedule(c config.Config) (*Schedule, error) {
+type group string
 
-	return &Schedule{
+type (
+	kabAndPair struct {
+		kab  string
+		pair string
+	}
+	day  []kabAndPair
+	week []day
+)
+
+type (
+	PairEntity []Pair
+	WorkDay    []PairEntity
+	WorkWeek   []WorkDay
+)
+
+func NewSchedule(c config.Config) (*ScheduleService, error) {
+
+	return &ScheduleService{
 		path:          c.PathToSchedule,
 		sheetName:     c.SheetName,
 		maxPairPerDay: c.MaxPairPerDay,
 	}, nil
 }
 
-func (s *Schedule) Update() (err error) {
+func (s *ScheduleService) Update() (err error) {
 	f, err := excelize.OpenFile(s.path)
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
@@ -43,36 +60,62 @@ func (s *Schedule) Update() (err error) {
 		return fmt.Errorf("get cols: %w", err)
 	}
 
-	s.m = colsToMap(cols, s.maxPairPerDay)
+	m := colsToMap(cols, s.maxPairPerDay)
+
+	var all = make(map[group]WorkWeek, len(m))
+	for group, week := range m {
+		all[group] = make(WorkWeek, len(week))
+		for i, day := range week {
+			all[group][i] = make(WorkDay, len(day))
+			for j, pair := range day {
+				all[group][i][j], err = newFromKabAndPair(pair)
+				if err != nil {
+					return fmt.Errorf("newFromKabAndPair: %w", err)
+				}
+			}
+		}
+	}
+
+	s.schedule = all
 
 	return nil
 }
 
-func (s *Schedule) GetWeekByGroup(groupName string) (WorkWeek, error) {
-	if s.m == nil {
+func (s *ScheduleService) GetWeekByGroup(groupName string) (WorkWeek, error) {
+	if s.schedule == nil {
 		return nil, fmt.Errorf("no schedule")
 	}
 
-	if w, ok := s.m[group(groupName)]; ok {
+	if w, ok := s.schedule[group(groupName)]; ok {
 		return w, nil
 	}
 
 	return nil, fmt.Errorf("group not found")
 }
 
-type kabAndPair struct {
-	kab  string
-	pair string
+func (s *ScheduleService) GetDayByGroup(groupName string, offset int) (WorkDay, error) {
+	if s.schedule == nil {
+		return nil, fmt.Errorf("no schedule")
+	}
+
+	w, err := s.GetWeekByGroup(groupName)
+	if err != nil {
+		return nil, err
+	}
+
+	if !w.IsNext(offset) {
+		return nil, fmt.Errorf("offset out of range")
+	}
+
+	return w[offset], nil
 }
 
-type group string
-
-type groups map[group]kabAndPair
-type WorkWeek []day
-type day []kabAndPair
+func (w week) IsNext(i int) bool {
+	return len(w)-1 > i
+}
 
 func (w WorkWeek) IsNext(i int) bool {
-	return len(w)-1 > i
+	return len(w) > i
 }
 
 func (d day) IsNext(i int) bool {
@@ -83,16 +126,16 @@ type Pair struct {
 	Teacher string
 	Subject string
 	Room    string
-	Group   byte
+	Group   int
 }
 
 const (
-	no byte = iota
+	no = iota
 	first
 	second
 )
 
-func (p Pair) formatKabAndPair(kap kabAndPair) (Pair, error) {
+func newFromKabAndPair(kap kabAndPair) ([]Pair, error) {
 	rawPair := kap.pair
 	rawPair = strings.Replace(rawPair, "Гр", "гр", -1)
 	rawPair = strings.Replace(rawPair, "ГР", "гр", -1)
@@ -104,46 +147,64 @@ func (p Pair) formatKabAndPair(kap kabAndPair) (Pair, error) {
 
 		switch len(split) {
 		case 0:
-			return p, fmt.Errorf("wrong pair")
+			return nil, fmt.Errorf("wrong pair")
 		case 1:
+			var pair Pair
 			teacher, subject := teacherAndSubject(split[0])
 			if strings.HasPrefix(subject, "1") {
 				subject = strings.Replace(subject, "1 ", "", 1)
-				res.WriteString(fmt.Sprintln("Предмет первой группы:", subject))
-				res.WriteString(fmt.Sprintln("Первая группа преподаватель:", teacher))
-				res.WriteString(fmt.Sprintln("Кабинет первой группы:", kap.kab))
+				pair.Group = first
 			} else {
 				subject = strings.Replace(subject, "2 ", "", 1)
-				res.WriteString(fmt.Sprintln("Предмет второй группы:", subject))
-				res.WriteString(fmt.Sprintln("Вторая группа преподаватель:", teacher))
-				res.WriteString(fmt.Sprintln("Кабинет второй группы:", kap.kab))
+				pair.Group = second
 			}
+			pair.Teacher = teacher
+			pair.Subject = subject
+
+			return []Pair{pair}, nil
 		case 2:
 			g1 := strings.Trim(split[0], " \n1гр.")
 			g2 := strings.Trim(split[1], " \n2гр.")
 
-			teacher1, subject1 := teacherAndSubject(g1)
-			teacher2, subject2 := teacherAndSubject(g2)
+			g2Split := strings.Split(g2, " ")
+
+			var teacher1, subject1, teacher2, subject2 string
+
+			if len(g2Split) < 3 {
+				teacher2 = g2
+				g1Split := strings.Split(g1, " ")
+				teacher1 = strings.Join(g1Split[0:1], " ")
+				subject1 = strings.Join(g1Split[2:], " ")
+				subject2 = subject1
+			} else {
+				teacher1, subject1 = teacherAndSubject(g1)
+				teacher2, subject2 = teacherAndSubject(g2)
+			}
+
 			kabs := strings.Split(kap.kab, "\n")
 
-			res.WriteString(fmt.Sprintln("Предмет первой группы:", subject1))
-			res.WriteString(fmt.Sprintln("Первая группа преподаватель:", teacher1))
-			res.WriteString(fmt.Sprintln("Кабинет первой группы:", kabs[0]))
+			pair1 := Pair{
+				Teacher: teacher1,
+				Subject: subject1,
+				Room:    kabs[0],
+				Group:   first,
+			}
 
-			res.WriteString(fmt.Sprintln("----------------------------------"))
+			pair2 := Pair{
+				Teacher: teacher2,
+				Subject: subject2,
+				Room:    kabs[1],
+				Group:   second,
+			}
 
-			res.WriteString(fmt.Sprintln("Предмет второй группы:", subject2))
-			res.WriteString(fmt.Sprintln("Вторая группа преподаватель:", teacher2))
-			res.WriteString(fmt.Sprintln("Кабинет второй группы:", kabs[1]))
+			return []Pair{pair1, pair2}, nil
 		}
-		return res.String()
 	}
 
 	teacher, subject := teacherAndSubject(rawPair)
-	res.WriteString(fmt.Sprintln("Предмет:", subject))
-	res.WriteString(fmt.Sprintln("Преподаватель:", teacher))
+	pair := Pair{Teacher: teacher, Subject: subject, Room: kap.kab, Group: no}
 
-	return res.String()
+	return []Pair{pair}, nil
 }
 
 func teacherAndSubject(str string) (string, string) {
@@ -156,13 +217,18 @@ func teacherAndSubject(str string) (string, string) {
 	}
 
 	split := strings.Split(str, " ")
+
+	if len(split) < 3 {
+		return "", ""
+	}
+
 	teacher := split[len(split)-2:]
 	subject := split[:len(split)-2]
 	return cleanArr(teacher), cleanArr(subject)
 }
 
-func colsToMap(cols [][]string, maxPairPerDay int) map[group]WorkWeek {
-	mp := make(map[group]WorkWeek)
+func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
+	mp := make(map[group]week)
 	dayPair := cols[0]
 	timePair := cols[1]
 	_, _ = dayPair, timePair
@@ -178,7 +244,7 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]WorkWeek {
 
 		col = col[1:]
 
-		week := make(WorkWeek, 5)
+		week := make(week, 5)
 		j := maxPairPerDay
 		i := 0
 		for cellIndex, cell := range col {

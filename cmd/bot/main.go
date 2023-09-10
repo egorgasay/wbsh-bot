@@ -3,14 +3,9 @@ package main
 import (
 	"bot/config"
 	"bot/internal/bot"
-	"bot/internal/handler"
-	"bot/internal/storage"
-	"bot/internal/usecase"
-	api "github.com/egorgasay/telemarket-grpc/telemarket"
+	"bot/internal/service"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,19 +17,26 @@ func main() {
 		log.Fatalf("config error: %s", err)
 	}
 
-	store, err := storage.New(cfg.PathToItems)
+	//store, err := storage.New(cfg.PathToItems)
+	//if err != nil {
+	//	log.Fatalf("storage error: %s", err)
+	//}
+
+	schedule, err := service.NewSchedule(cfg)
 	if err != nil {
-		log.Fatalf("storage error: %s", err)
+		log.Fatalf("NewSchedule error: %s", err)
 	}
 
-	logic := usecase.New(store)
+	if err := schedule.Update(); err != nil {
+		log.Fatalf("Update Schedule error: %s", err)
+	}
 
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("zap error: %s", err)
 	}
 
-	b, err := bot.New(cfg.Key, logic, logger)
+	b, err := bot.New(cfg.Key, schedule, logger)
 	if err != nil {
 		log.Fatalf("bot error: %s", err)
 	}
@@ -45,26 +47,6 @@ func main() {
 		if err != nil {
 			log.Fatalf("bot error: %s", err)
 		}
-	}()
-
-	h := handler.New(logic)
-
-	grpcServer := grpc.NewServer()
-	log.Println("Starting Telemarket ...")
-	lis, err := net.Listen("tcp", "127.0.0.1:"+cfg.Port) // TODO: TO CONFIG
-	if err != nil {
-		log.Fatal("failed to listen", zap.Error(err))
-	}
-	api.RegisterTelemarketServer(grpcServer, h)
-
-	// gRPC by default
-	go func() {
-		log.Println("Starting GRPC", lis.Addr())
-		err = grpcServer.Serve(lis)
-		if err != nil {
-			log.Fatalf("grpcServer Serve: %v", err)
-		}
-
 	}()
 
 	quit := make(chan os.Signal, 1)

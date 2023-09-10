@@ -7,32 +7,20 @@ import (
 
 // Group of constants for bot messages
 const (
-	startMessage           = "👋 Привет, меня зовут Космос! \n Я бот, который поможет тебе купить футболку:)"
-	feedbackMessage        = "Оцени магазин и качество вещей по пятибалльной шкале:"
-	thxFeedbackMessage     = "Спасибо! <3"
-	sorryFeedbackMessage   = "Нам очень жаль, что вам не понравилось, мы постараемся стать лучше!"
-	heightFeedbackMessage  = "Чтобы \"Предмет\" смотрелся как задумано, выбери свой дипазон роста:"
-	addressFeedbackMessage = "🇷🇺 Россия г. Санкт-Петербург"
-	sorryHeightMessage     = "У нас пока что нет таких размеров, но мы уже стараемся исправить эту проблему!"
-	itemsMessage           = "Выберите товар:"
-	infoMessage            = "Средняя оценка: {{ .Avg }} ⭐️\n"
-	itemMessage            = "{{ .Name }} \n{{ .Price }}р.\n{{ .Description }}"
+	startMessage = "👋 Привет, меня зовут Космос! \n Я бот, который поможет тебе купить футболку:)"
+	infoMessage  = "Средняя оценка: {{ .Avg }} ⭐️\n"
+	itemMessage  = "{{ .Name }} \n{{ .Price }}р.\n{{ .Description }}"
 )
 
 // Group of constants for handling messages from user.
 const (
-	height        = "Рост"
-	start         = "start"
-	address       = "Адрес"
-	feedBack      = "Оставить отзыв"
-	thxFeedback   = "Спасибо!"
-	sorryFeedback = "Мы стараемся!"
-	sorryHeight   = "Неверный размер"
-	size          = "размер"
-	items         = "Предметы"
-	item          = "item"
-	info          = "info"
-	rate          = "rate"
+	schedule    = "Расписание"
+	start       = "start"
+	feedBack    = "Оставить отзыв"
+	sorryHeight = "Неверный размер"
+	size        = "размер"
+	items       = "Предметы"
+	info        = "info"
 )
 
 // itemButtons array of items. Automatically fulfilled from storage when bot starts.
@@ -47,16 +35,10 @@ var (
 var (
 	startKeyboard = api.NewInlineKeyboardMarkup(
 		api.NewInlineKeyboardRow(
-			api.NewInlineKeyboardButtonData("Купить 🛒", items),
-			api.NewInlineKeyboardButtonData("Адрес 📍", address),
+			api.NewInlineKeyboardButtonData("Расписание", schedule+"::0"),
 		),
 		api.NewInlineKeyboardRow(
-			api.NewInlineKeyboardButtonData("Отзыв ⭐️", feedBack),
-			api.NewInlineKeyboardButtonURL("VK 💙", "https://vk.com/ledda.store"),
-		),
-		api.NewInlineKeyboardRow(
-			api.NewInlineKeyboardButtonData("Узнать размер ❔", height),
-			api.NewInlineKeyboardButtonData("О магазине ℹ️", info),
+			api.NewInlineKeyboardButtonData("О Боте ℹ️", info),
 		),
 	)
 
@@ -68,13 +50,13 @@ var (
 
 	itemsKeyboard = api.NewInlineKeyboardMarkup()
 
-	feedBackKeyboard = api.NewInlineKeyboardMarkup(
+	scheduleKeyboard = api.NewInlineKeyboardMarkup(
 		api.NewInlineKeyboardRow(
-			api.NewInlineKeyboardButtonData("1", "rate::1"),
-			api.NewInlineKeyboardButtonData("2", "rate::2"),
-			api.NewInlineKeyboardButtonData("3", "rate::3"),
-			api.NewInlineKeyboardButtonData("4", "rate::4"),
-			api.NewInlineKeyboardButtonData("5", "rate::5"),
+			api.NewInlineKeyboardButtonData("Пн", schedule+"::0"),
+			api.NewInlineKeyboardButtonData("Вт", schedule+"::1"),
+			api.NewInlineKeyboardButtonData("Ср", schedule+"::2"),
+			api.NewInlineKeyboardButtonData("Чт", schedule+"::3"),
+			api.NewInlineKeyboardButtonData("Пт", schedule+"::4"),
 		),
 
 		api.NewInlineKeyboardRow(

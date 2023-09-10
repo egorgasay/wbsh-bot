@@ -1,52 +1,40 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 )
 
-// Flag struct for parsing from env and cmd args.
-type Flag struct {
-	Key         *string
-	PathToItems *string
-	Port        *string
-}
-
 var (
-	f Flag
-
 	// ErrKeyNotSet error when the key is not set.
 	ErrKeyNotSet = errors.New("key not set")
 )
 
-func init() {
-	f.Key = flag.String("key", "", "-key=KEY")
-	f.Port = flag.String("p", "9876", "-p=port")
-	f.PathToItems = flag.String("items", "items.json", "-config=path/to/items.json")
-}
-
 // Config contains all the settings for configuring the application.
 type Config struct {
-	PathToSchedule string
-	SheetName      string
-	MaxPairPerDay  int
+	PathToSchedule string `json:"path_to_schedule"`
+	SheetName      string `json:"sheet_name"`
+	MaxPairPerDay  int    `json:"max_pair_per_day"`
+	Key            string `json:"key"`
 }
 
 // New initializing the config for the application.
-func New() (*Config, error) {
+func New() (Config, error) {
 	flag.Parse()
 
-	if key, ok := os.LookupEnv("TELEGRAM_BOT_KEY"); ok {
-		*f.Key = key
+	var c = Config{}
+	f, err := os.OpenFile("config/config.json", os.O_RDONLY, 0644)
+	if err != nil {
+		return c, fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	if err := json.NewDecoder(f).Decode(&c); err != nil {
+		return c, fmt.Errorf("read json: %w", err)
 	}
 
-	if *f.Key == "" {
-		return nil, ErrKeyNotSet
-	}
-
-	return &Config{
-		Key:         *f.Key,
-		PathToItems: *f.PathToItems,
-	}, nil
+	return c, nil
 }
