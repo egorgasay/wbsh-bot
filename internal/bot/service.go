@@ -7,7 +7,7 @@ import (
 
 // Group of constants for bot messages
 const (
-	startMessage = "👋 Привет, меня зовут Космос! \n Я бот, который поможет тебе купить футболку:)"
+	startMessage = "👋 Привет \n 🤖 Я бот, который поможет тебе посмотреть расписание:)"
 	infoMessage  = "Средняя оценка: {{ .Avg }} ⭐️\n"
 	itemMessage  = "{{ .Name }} \n{{ .Price }}р.\n{{ .Description }}"
 )
@@ -28,14 +28,14 @@ var itemButtons = make([][]api.InlineKeyboardButton, 0)
 
 var (
 	allItemsImage = "src/images/allItems.png"
-	startImage    = "src/images/ledda.png"
+	startImage    = "src/images/bot.jpeg"
 )
 
 // Group of variables that are keyboard buttons.
 var (
 	startKeyboard = api.NewInlineKeyboardMarkup(
 		api.NewInlineKeyboardRow(
-			api.NewInlineKeyboardButtonData("Расписание", schedule+"::0"),
+			api.NewInlineKeyboardButtonData("Расписание", schedule),
 		),
 		api.NewInlineKeyboardRow(
 			api.NewInlineKeyboardButtonData("О Боте ℹ️", info),

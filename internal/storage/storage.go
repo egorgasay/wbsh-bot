@@ -2,10 +2,12 @@ package storage
 
 import (
 	"bot/internal/entity"
+	"bot/internal/entity/table"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
 	"os"
 	"sync"
 )
@@ -16,10 +18,11 @@ type Storage struct {
 	items      map[string]entity.IItem
 	allRates   int
 	countRates int
+	db         gorm.DB
 }
 
-// ErrItemNotFound error for item not found.
-var ErrItemNotFound = errors.New("item not found")
+// ErrUserNotFound error for item not found.
+var ErrUserNotFound = errors.New("item not found")
 
 var defaultItems = map[string]entity.IItem{
 	"1": entity.Item{
@@ -83,7 +86,18 @@ func (s *Storage) GetItemByName(name string) (i entity.IItem, err error) {
 		}
 	}
 
-	return i, ErrItemNotFound
+	return i, ErrUserNotFound
+}
+
+func (s *Storage) GetUserByID(ID int) (u table.User, err error) {
+	if err := s.db.First(&u, "id = ?", ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return u, ErrUserNotFound
+		}
+		return u, err
+	}
+
+	return u, nil
 }
 
 // GetAll returns the names of all items from the repository.
@@ -154,5 +168,13 @@ func (s *Storage) GetItem(id string) (entity.IItem, error) {
 		return i, nil
 	}
 
-	return nil, ErrItemNotFound
+	return nil, ErrUserNotFound
+}
+
+func (s *Storage) AddUser(us table.User) error {
+	if err := s.db.Create(&us).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

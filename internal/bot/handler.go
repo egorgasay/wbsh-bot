@@ -1,7 +1,10 @@
 package bot
 
 import (
+	"bot/internal/entity/table"
 	"bot/internal/service"
+	"bot/internal/storage"
+	"errors"
 	"fmt"
 	api "gopkg.in/telegram-bot-api.v4"
 	"log"
@@ -65,8 +68,6 @@ func findGroup(pe service.PairEntity, gid int) (service.Pair, error) {
 
 // handleMessage handle callbacks from user.
 func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
-
-	markup := api.NewInlineKeyboardMarkup()
 	split := strings.Split(query.Data, "::")
 	if len(split) == 0 {
 		return
@@ -77,68 +78,117 @@ func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
 	text := split[0]
 	// pathToFile := ""
 
-	switch text {
-	case "Расписание":
-		gn := "04 74-20"
-
-		offset, err := strconv.Atoi(split[1])
-		if err != nil {
-			b.logger.Warn(fmt.Sprintf("get offset error: %v", err.Error()))
+	user, err := b.storage.GetUserByID(query.From.ID)
+	if err != nil {
+		if !errors.Is(err, storage.ErrUserNotFound) { // TODO:
+			b.logger.Warn(fmt.Sprintf("get user error: %v", err.Error()))
+			return
 		}
 
-		memberOfGroup := 2
-
-		day, err := b.schedule.GetDayByGroup(gn, offset)
-		if err != nil {
-			b.logger.Warn(fmt.Sprintf("get day error: %v", err.Error()))
-			text = "Ошибка получения расписания"
-		} else {
-			var sb strings.Builder
-			text = "Нет пар на этот день"
-			if len(day) > 0 {
-				sb.WriteString(fmt.Sprintf("День: %s\n\n", toDay(offset)))
-			}
-
-			for i, pairE := range day {
-				actualPair, err := findGroup(pairE, memberOfGroup)
-				if err != nil {
-					sb.WriteString(
-						fmt.Sprintf(
-							"№%d\nПара у другой группы\n\n", i+1,
-						),
-					)
-				} else {
-					sb.WriteString(
-						fmt.Sprintf(
-							"№%d\nПредмет: %s\nКабинет: %s\nПреподаватель: %s\n\n",
-							i+1, actualPair.Subject, actualPair.Room, actualPair.Teacher,
-						),
-					)
-				}
-			}
-
-			text = sb.String()
-			markup = scheduleKeyboard
-		}
+		b.register(query.From)
 	}
 
 	var msg api.Chattable
-	msgText := api.NewMessage(query.Message.Chat.ID, text)
-	msgText.ReplyMarkup = markup
-	msg = msgText
-
-	//if pathToFile != "" {
-	//	msgWithPhoto := api.NewPhotoUpload(query.Message.Chat.ID, pathToFile)
-	//	msgWithPhoto.Caption = text
-	//	msgWithPhoto.ReplyMarkup = markup
-	//	msg = msgWithPhoto
-	//} else {
-	//	msgText := api.NewMessage(query.Message.Chat.ID, text)
-	//	msgText.ReplyMarkup = markup
-	//	msg = msgText
-	//}
+	switch text {
+	case start:
+		b.handleStart(query.Message)
+		return
+	case schedule:
+		if len(split) == 1 {
+			split = append(split, "-1")
+		}
+		user.Group = "04 74-20"
+		user.SubGroup = 2
+		msg = b.handleSchedule(split[1], query.Message, user)
+	}
 
 	if _, err := b.Send(msg); err != nil {
-		b.logger.Warn(fmt.Sprintf("send error: %v", err.Error()))
+		b.logger.Warn(fmt.Sprintf("send error from handleSchedule: %v", err.Error()))
+	}
+}
+
+func newMsgForUser(text string, chatID int64, markup api.InlineKeyboardMarkup) api.Chattable {
+	msg := api.NewMessage(chatID, text)
+	msg.ReplyMarkup = markup
+	return msg
+}
+
+func editMsgForUser(text string, chatID int64, messageID int, markup api.InlineKeyboardMarkup) api.Chattable {
+	msg := api.NewEditMessageText(chatID, messageID, text)
+	msg.ReplyMarkup = &markup
+	return msg
+}
+
+func (b *Bot) handleSchedule(text string, msgConf *api.Message, user table.User) (msg api.Chattable) {
+
+	fromStart := false
+
+	offset, err := strconv.Atoi(text)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("get offset error: %v", err.Error()))
+	} else if offset == -1 {
+		offset = 0
+		fromStart = true
+	}
+
+	defer func() {
+		if fromStart {
+			msg = newMsgForUser(text, msgConf.Chat.ID, scheduleKeyboard)
+		} else {
+			msg = editMsgForUser(text, msgConf.Chat.ID, msgConf.MessageID, scheduleKeyboard)
+		}
+	}()
+
+	day, err := b.schedule.GetDayByGroup(user.Group, offset)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("get day error: %v", err.Error()))
+		text = "Ошибка получения расписания"
+		return msg
+	}
+
+	var sb strings.Builder
+	if len(day) > 0 {
+		sb.WriteString(fmt.Sprintf("День: %s\n\n", toDay(offset)))
+	}
+
+	if len(day) == 0 {
+		sb.WriteString("Нет пар на этот день")
+		text = sb.String()
+		return msg
+	}
+
+	for i, pairE := range day {
+		actualPair, err := findGroup(pairE, user.SubGroup)
+		if err != nil {
+			sb.WriteString(
+				fmt.Sprintf(
+					"№%d\nПара у другой группы\n\n", i+1,
+				),
+			)
+		} else {
+			sb.WriteString(
+				fmt.Sprintf(
+					"№%d\nПредмет: %s\nКабинет: %s\nПреподаватель: %s\n\n",
+					i+1, actualPair.Subject, actualPair.Room, actualPair.Teacher,
+				),
+			)
+		}
+	}
+
+	text = sb.String()
+
+	return msg
+}
+
+func (b *Bot) register(from *api.User) {
+	us := table.User{
+		ID:       from.ID,
+		Name:     from.FirstName,
+		Nickname: from.UserName,
+		Admin:    false,
+	}
+	err := b.storage.AddUser(us)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("add user error: %v", err.Error()))
 	}
 }
