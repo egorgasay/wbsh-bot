@@ -57,13 +57,31 @@ func toDay(i int) string {
 	return ""
 }
 
-func findGroup(pe service.PairEntity, gid int) (service.Pair, error) {
+var ErrGroupNotFound = errors.New("group not found")
+var ErrNoPair = errors.New("no pair")
+
+func findGroup(pe service.PairEntity, groupID int) (service.Pair, error) {
+	//if groupID == -1 && len(pe) == 2 { // TODO:
+	//	return service.Pair{
+	//		Teacher: "",
+	//		Subject: "",
+	//		Room:    "",
+	//		Group:   0,
+	//	}, nil
+	//
+	//}
+	//
+
+	if pe == nil {
+		return service.Pair{}, ErrNoPair
+	}
+
 	for _, p := range pe {
-		if p.Group == gid || p.Group == 0 {
+		if p.Group == groupID || p.Group == 0 {
 			return p, nil
 		}
 	}
-	return service.Pair{}, fmt.Errorf("group not found")
+	return service.Pair{}, ErrGroupNotFound
 }
 
 // handleMessage handle callbacks from user.
@@ -85,25 +103,33 @@ func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
 			return
 		}
 
-		b.register(query.From)
+		b.register(query.Message.Chat.ID, query.From)
+		return
 	}
 
-	var msg api.Chattable
 	switch text {
 	case start:
 		b.handleStart(query.Message)
-		return
+	case changeGroup:
+		b.suggestGroup(user)
+	case group:
+		b.addGroup(user, split[1])
+	case subgroup:
+		b.addSubGroup(user, split[1])
+	case settings:
+		b.showSettings(user)
+	case sendSchedule:
+		b.showSubscribe(user)
+	case changeSubscribe:
+		b.changeSubscribe(user)
+	case info:
+		b.showInfo(user)
 	case schedule:
 		if len(split) == 1 {
 			split = append(split, "-1")
 		}
-		user.Group = "04 74-20"
-		user.SubGroup = 2
-		msg = b.handleSchedule(split[1], query.Message, user)
-	}
 
-	if _, err := b.Send(msg); err != nil {
-		b.logger.Warn(fmt.Sprintf("send error from handleSchedule: %v", err.Error()))
+		b.send(b.handleSchedule(split[1], query.Message, user))
 	}
 }
 
@@ -122,6 +148,8 @@ func editMsgForUser(text string, chatID int64, messageID int, markup api.InlineK
 func (b *Bot) handleSchedule(text string, msgConf *api.Message, user table.User) (msg api.Chattable) {
 
 	fromStart := false
+	chatID := msgConf.Chat.ID
+	msgID := msgConf.MessageID
 
 	offset, err := strconv.Atoi(text)
 	if err != nil {
@@ -133,9 +161,9 @@ func (b *Bot) handleSchedule(text string, msgConf *api.Message, user table.User)
 
 	defer func() {
 		if fromStart {
-			msg = newMsgForUser(text, msgConf.Chat.ID, scheduleKeyboard)
+			msg = newMsgForUser(text, chatID, scheduleKeyboard)
 		} else {
-			msg = editMsgForUser(text, msgConf.Chat.ID, msgConf.MessageID, scheduleKeyboard)
+			msg = editMsgForUser(text, chatID, msgID, scheduleKeyboard)
 		}
 	}()
 
@@ -160,11 +188,20 @@ func (b *Bot) handleSchedule(text string, msgConf *api.Message, user table.User)
 	for i, pairE := range day {
 		actualPair, err := findGroup(pairE, user.SubGroup)
 		if err != nil {
-			sb.WriteString(
-				fmt.Sprintf(
-					"№%d\nПара у другой группы\n\n", i+1,
-				),
-			)
+			switch err {
+			case ErrGroupNotFound:
+				sb.WriteString(
+					fmt.Sprintf(
+						"№%d\nПара у другой группы\n\n", i+1,
+					),
+				)
+			case ErrNoPair:
+				sb.WriteString(
+					fmt.Sprintf(
+						"№%d\nПара не найдена, проверьте на сайте на всякий случай)\n\n", i+1,
+					),
+				)
+			}
 		} else {
 			sb.WriteString(
 				fmt.Sprintf(
@@ -180,9 +217,10 @@ func (b *Bot) handleSchedule(text string, msgConf *api.Message, user table.User)
 	return msg
 }
 
-func (b *Bot) register(from *api.User) {
+func (b *Bot) register(chatID int64, from *api.User) {
 	us := table.User{
 		ID:       from.ID,
+		ChatID:   chatID,
 		Name:     from.FirstName,
 		Nickname: from.UserName,
 		Admin:    false,
@@ -191,4 +229,91 @@ func (b *Bot) register(from *api.User) {
 	if err != nil {
 		b.logger.Warn(fmt.Sprintf("add user error: %v", err.Error()))
 	}
+
+	user, err := b.storage.GetUserByID(from.ID)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("get user error: %v", err.Error()))
+		return
+	}
+
+	b.suggestGroup(user)
+}
+
+func (b *Bot) suggestGroup(user table.User) {
+	b.send(newMsgForUser("Выберите группу", user.ChatID, groupsKeyboard))
+}
+
+func (b *Bot) suggestSubGroup(user table.User) {
+	b.send(newMsgForUser("Выберите подгруппу", user.ChatID, subGroupsKeyboard))
+}
+
+func (b *Bot) showThanksForRegistration(user table.User) {
+	b.send(newMsgForUser("Спасбо за регистрацию! Ты можешь настроить время отправки распиания в настройках.",
+		user.ChatID, toScheduleKeyboard))
+}
+
+func (b *Bot) showSubscribe(user table.User) {
+	var text string
+	if user.Subscribed {
+		text = "Отписаться?"
+	} else {
+		text = "Данная функция находится в разработке. \n \nПодписаться?"
+	}
+
+	b.send(newMsgForUser(text, user.ChatID, submitSubscribeKeyboard))
+}
+
+func (b *Bot) showSuccess(user table.User) {
+	b.send(newMsgForUser("Успешно!", user.ChatID, toScheduleKeyboard))
+}
+
+func (b *Bot) showSettings(user table.User) {
+	b.send(newMsgForUser("Настройки:", user.ChatID, settingsKeyboard))
+}
+
+func (b *Bot) addGroup(user table.User, group string) {
+	user.Group = group
+	err := b.storage.SaveUser(user)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("addGroup save error: %v", err.Error()))
+	}
+
+	b.suggestSubGroup(user)
+}
+
+func (b *Bot) addSubGroup(user table.User, subGroup string) {
+	subGroupInt, err := strconv.Atoi(subGroup)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("addSubGroup convert error: %v", err.Error()))
+		return
+	}
+
+	user.SubGroup = subGroupInt
+	err = b.storage.SaveUser(user)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("addSubGroup save error: %v", err.Error()))
+	}
+
+	b.showThanksForRegistration(user)
+}
+
+func (b *Bot) send(c api.Chattable) {
+	_, err := b.Send(c)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("send error: %v", err.Error()))
+	}
+}
+
+func (b *Bot) changeSubscribe(user table.User) {
+	user.Subscribed = !user.Subscribed
+	err := b.storage.SaveUser(user)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("changeSubscribe save error: %v", err.Error()))
+	}
+
+	b.showSuccess(user)
+}
+
+func (b *Bot) showInfo(user table.User) {
+	b.send(newMsgForUser("привет, если возникли проблемы с расписанием, напиши мне @gasayminajj.", user.ChatID, infoKeyboard))
 }

@@ -4,8 +4,11 @@ import (
 	"bot/config"
 	"bot/internal/bot"
 	"bot/internal/service"
+	"bot/internal/storage"
+	"fmt"
 	"go.uber.org/zap"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,10 +20,10 @@ func main() {
 		log.Fatalf("config error: %s", err)
 	}
 
-	//store, err := storage.New(cfg.PathToItems)
-	//if err != nil {
-	//	log.Fatalf("storage error: %s", err)
-	//}
+	store, err := storage.New(cfg.StorageConfig)
+	if err != nil {
+		log.Fatalf("storage error: %s", err)
+	}
 
 	schedule, err := service.NewSchedule(cfg)
 	if err != nil {
@@ -36,7 +39,7 @@ func main() {
 		log.Fatalf("zap error: %s", err)
 	}
 
-	b, err := bot.New(cfg.Key, schedule, logger)
+	b, err := bot.New(cfg.Key, schedule, logger, store)
 	if err != nil {
 		log.Fatalf("bot error: %s", err)
 	}
@@ -52,9 +55,21 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	upMockHTTPServer()
+
 	<-quit
 
 	log.Println("Shutdown Bot ...")
 
 	b.Stop()
+}
+
+func upMockHTTPServer() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Hello!")
+	})
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

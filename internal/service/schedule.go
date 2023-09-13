@@ -13,7 +13,7 @@ type ScheduleService struct {
 	sheetName     string
 	maxPairPerDay int
 	storage       *storage.Storage
-	schedule      map[group]WorkWeek
+	schedule      map[group]WorkWeek // todo: add lock
 }
 
 type group string
@@ -110,6 +110,15 @@ func (s *ScheduleService) GetDayByGroup(groupName string, offset int) (WorkDay, 
 	return w[offset], nil
 }
 
+func (s *ScheduleService) GetDayGroupNames() []string {
+	var names []string
+	for g := range s.schedule {
+		names = append(names, string(g))
+	}
+
+	return names
+}
+
 func (w week) IsNext(i int) bool {
 	return len(w)-1 > i
 }
@@ -130,13 +139,19 @@ type Pair struct {
 }
 
 const (
-	no = iota
+	all = iota - 1
+	no
 	first
 	second
 )
 
 func newFromKabAndPair(kap kabAndPair) ([]Pair, error) {
 	rawPair := kap.pair
+
+	if rawPair == "Нет" {
+		return nil, nil
+	}
+
 	rawPair = strings.Replace(rawPair, "Гр", "гр", -1)
 	rawPair = strings.Replace(rawPair, "ГР", "гр", -1)
 	rawPair = strings.Replace(rawPair, "гР", "гр", -1)

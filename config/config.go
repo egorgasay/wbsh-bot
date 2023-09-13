@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bot/internal/storage"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -19,6 +20,7 @@ type Config struct {
 	SheetName      string `json:"sheet_name"`
 	MaxPairPerDay  int    `json:"max_pair_per_day"`
 	Key            string `json:"key"`
+	StorageConfig  storage.Config
 }
 
 // New initializing the config for the application.

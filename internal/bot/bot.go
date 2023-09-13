@@ -33,6 +33,8 @@ func New(token string, schedule *service.ScheduleService, logger *zap.Logger, st
 		storage:  storage,
 	}
 
+	bot.formGroups(schedule.GetDayGroupNames())
+
 	return bot, nil
 }
 
@@ -70,4 +72,30 @@ func (b *Bot) Start() error {
 // Stop stops the bot.
 func (b *Bot) Stop() {
 	b.StopReceivingUpdates()
+}
+
+func (b *Bot) formGroups(groups []string) {
+	groupButtons = groupButtons[:0]
+
+	var buttons []api.InlineKeyboardButton
+	for _, group := range groups {
+		buttons = append(buttons,
+			api.NewInlineKeyboardButtonData(group, "group::"+group),
+		)
+
+		if len(buttons) == 5 { // todo: const
+			groupButtons = append(groupButtons,
+				api.NewInlineKeyboardRow(buttons...),
+			)
+			buttons = []api.InlineKeyboardButton{}
+		}
+	}
+
+	if len(buttons) > 0 {
+		groupButtons = append(groupButtons,
+			api.NewInlineKeyboardRow(buttons...),
+		)
+	}
+
+	groupsKeyboard = api.NewInlineKeyboardMarkup(groupButtons...)
 }
