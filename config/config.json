@@ -2,7 +2,7 @@
     "path_to_schedule": "Расписание по группам.xlsm",
     "sheet_name": "Результат  6 пар",
     "max_pair_per_day": 6,
-    "key": "6539717835:AAGoe0e7Y8P-Enicy0npcqH6oqRowBSK3io",
+    "key": "YOUR KEY",
     "storage": {
         "dsn": "schedule.db"
     }
