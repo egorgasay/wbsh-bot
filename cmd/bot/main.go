@@ -5,13 +5,13 @@ import (
 	"bot/internal/bot"
 	"bot/internal/service"
 	"bot/internal/storage"
+	"context"
 	"fmt"
 	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
 )
 
 func main() {
@@ -44,18 +44,21 @@ func main() {
 		log.Fatalf("bot error: %s", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	go func() {
 		log.Println("Starting Bot ...")
-		err := b.Start()
+		err := b.Start(ctx)
 		if err != nil {
 			log.Fatalf("bot error: %s", err)
 		}
 	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	go upMockHTTPServer()
 
-	upMockHTTPServer()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
 
 	<-quit
 

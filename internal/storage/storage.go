@@ -14,7 +14,10 @@ type Storage struct {
 }
 
 // ErrUserNotFound error for item not found.
-var ErrUserNotFound = errors.New("item not found")
+var (
+	ErrUserNotFound  = errors.New("item not found")
+	ErrNoSubscribers = errors.New("no subscribers")
+)
 
 type Config struct {
 	DSN string `json:"dsn"`
@@ -65,4 +68,16 @@ func (s *Storage) SaveUser(us table.User) error {
 	}
 
 	return nil
+}
+
+func (s *Storage) GetSubscribers() (subs []table.User, err error) {
+	if err := s.db.Find(&subs, "subscribed = ?", true).Error; err != nil {
+		return subs, err
+	}
+
+	if len(subs) == 0 {
+		return subs, ErrNoSubscribers
+	}
+
+	return subs, nil
 }

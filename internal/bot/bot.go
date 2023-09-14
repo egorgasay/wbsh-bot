@@ -3,9 +3,12 @@ package bot
 import (
 	"bot/internal/service"
 	"bot/internal/storage"
+	"context"
+	"errors"
 	"fmt"
 	"go.uber.org/zap"
 	api "gopkg.in/telegram-bot-api.v4"
+	"log"
 	"sync"
 	"time"
 )
@@ -45,19 +48,27 @@ func New(token string, schedule *service.ScheduleService, logger *zap.Logger, st
 }
 
 // Start starts the bot.
-func (b *Bot) Start() error {
+func (b *Bot) Start(ctx context.Context) error {
 	u := api.NewUpdate(0)
 	u.Timeout = 60
 
 	updates, err := b.GetUpdatesChan(u)
 	if err != nil {
-		panic(err) // TODO: REMOVE THIS
+		return fmt.Errorf("get updates chan: %w", err)
 	}
 
-	b.formSubscribers()
-	go b.sendToSubscribers()
+	err = b.formSubscribers()
+	if err != nil && !errors.Is(err, storage.ErrNoSubscribers) {
+		return fmt.Errorf("form subscribers: %w", err)
+	}
+
+	go b.sendToSubscribers(ctx)
 
 	for update := range updates {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
 		if update.CallbackQuery != nil {
 			b.handleCallbackQuery(update.CallbackQuery)
 			continue
@@ -109,13 +120,19 @@ func (b *Bot) formGroups(groups []string) {
 	groupsKeyboard = api.NewInlineKeyboardMarkup(groupButtons...)
 }
 
-func (b *Bot) sendToSubscribers() {
+func (b *Bot) sendToSubscribers(ctx context.Context) {
 	lastDay := 0
-	for {
-		now := time.Now()
+
+	mskLoc, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		log.Fatalf("sendToSubscribers: load location error: %s", err)
+	}
+
+	for ctx.Err() == nil {
+		now := time.Now().In(mskLoc)
 		hour := now.Hour()
 		day := now.Day()
-		if hour != 21 && day != lastDay {
+		if hour != 8 || day == lastDay {
 			continue
 		}
 
@@ -131,7 +148,7 @@ func (b *Bot) sendToSubscribers() {
 
 			// todo: handle sunday
 
-			b.send(b.handleSchedule("", 0, user))
+			b.send(b.handleSchedule("-1", 0, user))
 		}
 		b.mu.RUnlock()
 	}
@@ -139,4 +156,15 @@ func (b *Bot) sendToSubscribers() {
 
 func (b *Bot) formSubscribers() error {
 	b.subscribers = make(map[int]struct{})
+
+	subs, err := b.storage.GetSubscribers()
+	if err != nil {
+		return err
+	}
+
+	for _, user := range subs {
+		b.subscribers[user.ID] = struct{}{}
+	}
+
+	return nil
 }
