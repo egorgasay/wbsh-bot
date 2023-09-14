@@ -16,11 +16,11 @@ var (
 
 // Config contains all the settings for configuring the application.
 type Config struct {
-	PathToSchedule string `json:"path_to_schedule"`
-	SheetName      string `json:"sheet_name"`
-	MaxPairPerDay  int    `json:"max_pair_per_day"`
-	Key            string `json:"key"`
-	StorageConfig  storage.Config
+	PathToSchedule string         `json:"path_to_schedule"`
+	SheetName      string         `json:"sheet_name"`
+	MaxPairPerDay  int            `json:"max_pair_per_day"`
+	Key            string         `json:"key"`
+	StorageConfig  storage.Config `json:"storage"`
 }
 
 // New initializing the config for the application.

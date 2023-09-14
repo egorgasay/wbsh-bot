@@ -10,6 +10,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // handleMessage handles commands.
@@ -129,7 +130,7 @@ func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
 			split = append(split, "-1")
 		}
 
-		b.send(b.handleSchedule(split[1], query.Message, user))
+		b.send(b.handleSchedule(split[1], query.Message.MessageID, user))
 	}
 }
 
@@ -145,25 +146,39 @@ func editMsgForUser(text string, chatID int64, messageID int, markup api.InlineK
 	return msg
 }
 
-func (b *Bot) handleSchedule(text string, msgConf *api.Message, user table.User) (msg api.Chattable) {
+func weekdayToInt(w time.Weekday) int {
+	switch w {
+	case time.Monday, time.Saturday, time.Sunday: // TODO: refactor
+		return 0
+	case time.Tuesday:
+		return 1
+	case time.Wednesday:
+		return 2
+	case time.Thursday:
+		return 3
+	case time.Friday:
+		return 4
+	}
 
-	fromStart := false
-	chatID := msgConf.Chat.ID
-	msgID := msgConf.MessageID
+	return -1
+}
+
+func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.Chattable) {
+	needNew := false
 
 	offset, err := strconv.Atoi(text)
 	if err != nil {
 		b.logger.Warn(fmt.Sprintf("get offset error: %v", err.Error()))
 	} else if offset == -1 {
-		offset = 0
-		fromStart = true
+		offset = weekdayToInt(time.Now().Weekday())
+		needNew = true
 	}
 
 	defer func() {
-		if fromStart {
-			msg = newMsgForUser(text, chatID, scheduleKeyboard)
+		if needNew {
+			msg = newMsgForUser(text, user.ChatID, scheduleKeyboard)
 		} else {
-			msg = editMsgForUser(text, chatID, msgID, scheduleKeyboard)
+			msg = editMsgForUser(text, user.ChatID, msgID, scheduleKeyboard)
 		}
 	}()
 
@@ -219,11 +234,12 @@ func (b *Bot) handleSchedule(text string, msgConf *api.Message, user table.User)
 
 func (b *Bot) register(chatID int64, from *api.User) {
 	us := table.User{
-		ID:       from.ID,
-		ChatID:   chatID,
-		Name:     from.FirstName,
-		Nickname: from.UserName,
-		Admin:    false,
+		ID:         from.ID,
+		ChatID:     chatID,
+		Name:       from.FirstName,
+		Nickname:   from.UserName,
+		Admin:      false,
+		Subscribed: false,
 	}
 	err := b.storage.AddUser(us)
 	if err != nil {

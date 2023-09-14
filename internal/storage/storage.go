@@ -17,7 +17,7 @@ type Storage struct {
 var ErrUserNotFound = errors.New("item not found")
 
 type Config struct {
-	DSN string
+	DSN string `json:"dsn"`
 }
 
 // New returns new storage
