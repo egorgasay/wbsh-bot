@@ -239,7 +239,7 @@ func (b *Bot) register(chatID int64, from *api.User) {
 		Name:       from.FirstName,
 		Nickname:   from.UserName,
 		Admin:      false,
-		Subscribed: false,
+		Subscribed: true,
 	}
 	err := b.storage.AddUser(us)
 	if err != nil {
