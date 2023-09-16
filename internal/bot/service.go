@@ -6,7 +6,7 @@ import (
 
 // Group of constants for bot messages
 const (
-	startMessage = "👋 Привет \n 🤖 Я бот, который поможет тебе посмотреть расписание:) \n\n  v0.2.0"
+	startMessage = "👋 Привет! Я бот, который поможет тебе посмотреть расписание:) \n\n Стадия: Закрытое бета тестирование \n Версия: v0.3.1"
 	infoMessage  = "Средняя оценка: {{ .Avg }} ⭐️\n"
 	itemMessage  = "{{ .Name }} \n{{ .Price }}р.\n{{ .Description }}"
 )
@@ -14,6 +14,7 @@ const (
 // Group of constants for handling messages from user.
 const (
 	schedule        = "Расписание"
+	silence         = "silence"
 	start           = "start"
 	feedBack        = "Оставить отзыв"
 	sorryHeight     = "Неверный размер"
@@ -58,6 +59,16 @@ var (
 		),
 
 		api.NewInlineKeyboardRow(
+			api.NewInlineKeyboardButtonData("Назад", start),
+		),
+	)
+	nextPairKeyboard = api.NewInlineKeyboardMarkup(
+		api.NewInlineKeyboardRow(
+			api.NewInlineKeyboardButtonData("Заглушить до конца дня", silence),
+		),
+
+		api.NewInlineKeyboardRow(
+			api.NewInlineKeyboardButtonData("К расписанию", schedule),
 			api.NewInlineKeyboardButtonData("Назад", start),
 		),
 	)

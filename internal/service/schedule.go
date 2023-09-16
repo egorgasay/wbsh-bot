@@ -9,8 +9,7 @@ import (
 )
 
 type ScheduleService struct {
-	path          string
-	sheetName     string
+	paths         []string
 	maxPairPerDay int
 	storage       *storage.Storage
 	schedule      map[group]WorkWeek // todo: add lock
@@ -36,31 +35,48 @@ type (
 func NewSchedule(c config.Config) (*ScheduleService, error) {
 
 	return &ScheduleService{
-		path:          c.PathToSchedule,
-		sheetName:     c.SheetName,
+		paths:         c.Files,
 		maxPairPerDay: c.MaxPairPerDay,
 	}, nil
 }
 
 func (s *ScheduleService) Update() (err error) {
-	f, err := excelize.OpenFile(s.path)
-	if err != nil {
-		return fmt.Errorf("open file: %w", err)
-	}
+	var allCols [][]string
 
-	defer func() {
-		// Close the spreadsheet.
-		if errClose := f.Close(); err != nil {
-			err = fmt.Errorf("close file: %w", errClose)
+	for _, path := range s.paths {
+		err = func() error {
+			f, err := excelize.OpenFile(path)
+			if err != nil {
+				return fmt.Errorf("open file: %w", err)
+			}
+
+			defer func() {
+				// Close the spreadsheet.
+				if errClose := f.Close(); err != nil {
+					err = fmt.Errorf("close file: %w", errClose)
+				}
+			}()
+
+			for _, sheet := range f.GetSheetMap() {
+				cols, err := f.GetCols(sheet)
+				if err != nil {
+					return fmt.Errorf("get cols: %w", err)
+				}
+
+				allCols = append(allCols, cols...)
+			}
+
+			return nil
+		}()
+
+		if err != nil {
+			return fmt.Errorf("update: %w", err)
 		}
-	}()
-
-	cols, err := f.GetCols(s.sheetName)
-	if err != nil {
-		return fmt.Errorf("get cols: %w", err)
 	}
 
-	m := colsToMap(cols, s.maxPairPerDay)
+	m := colsToMap(allCols, 5)
+	delete(m, "День\nнеде")
+	delete(m, "Время")
 
 	var all = make(map[group]WorkWeek, len(m))
 	for group, week := range m {
@@ -175,6 +191,7 @@ func newFromKabAndPair(kap kabAndPair) ([]Pair, error) {
 			}
 			pair.Teacher = teacher
 			pair.Subject = subject
+			pair.Room = kap.kab
 
 			return []Pair{pair}, nil
 		case 2:
@@ -197,6 +214,12 @@ func newFromKabAndPair(kap kabAndPair) ([]Pair, error) {
 			}
 
 			kabs := strings.Split(kap.kab, "\n")
+			if len(kabs) != 2 {
+				kabs = strings.Split(kap.kab, " ")
+				if len(kabs) != 2 {
+					kabs = []string{kap.kab, kap.kab}
+				}
+			}
 
 			pair1 := Pair{
 				Teacher: teacher1,

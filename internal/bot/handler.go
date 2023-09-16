@@ -125,6 +125,8 @@ func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
 		b.changeSubscribe(user)
 	case info:
 		b.showInfo(user)
+	case silence:
+		b.silence(user)
 	case schedule:
 		if len(split) == 1 {
 			split = append(split, "-1")
@@ -134,9 +136,11 @@ func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
 	}
 }
 
-func newMsgForUser(text string, chatID int64, markup api.InlineKeyboardMarkup) api.Chattable {
+func newMsgForUser(text string, chatID int64, markup *api.InlineKeyboardMarkup) api.Chattable {
 	msg := api.NewMessage(chatID, text)
-	msg.ReplyMarkup = markup
+	if markup != nil {
+		msg.ReplyMarkup = *markup
+	}
 	return msg
 }
 
@@ -176,7 +180,7 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 
 	defer func() {
 		if needNew {
-			msg = newMsgForUser(text, user.ChatID, scheduleKeyboard)
+			msg = newMsgForUser(text, user.ChatID, &scheduleKeyboard)
 		} else {
 			msg = editMsgForUser(text, user.ChatID, msgID, scheduleKeyboard)
 		}
@@ -232,6 +236,32 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 	return msg
 }
 
+func (b *Bot) handleNextPair(user table.User, offset int) (msg api.Chattable, err error) {
+	//day :=
+
+	day, err := b.schedule.GetDayByGroup(user.Group, weekdayToInt(time.Now().Weekday()))
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("get day error: %v", err.Error()))
+		return nil, err
+	}
+
+	if len(day) == 0 || len(day) <= offset {
+		return nil, ErrNoPair
+	}
+
+	actualPair, err := findGroup(day[offset], user.SubGroup)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("find group error: %v", err.Error()))
+		return nil, err
+	}
+
+	var text = fmt.Sprintf(
+		"Следующая пара: %s\nПреподаватель: %s\nКабинет: %s\n\n",
+		actualPair.Subject, actualPair.Teacher, actualPair.Room)
+
+	return newMsgForUser(text, user.ChatID, &nextPairKeyboard), nil
+}
+
 func (b *Bot) register(chatID int64, from *api.User) {
 	us := table.User{
 		ID:         from.ID,
@@ -256,35 +286,35 @@ func (b *Bot) register(chatID int64, from *api.User) {
 }
 
 func (b *Bot) suggestGroup(user table.User) {
-	b.send(newMsgForUser("Выберите группу", user.ChatID, groupsKeyboard))
+	b.send(newMsgForUser("Выберите группу", user.ChatID, &groupsKeyboard))
 }
 
 func (b *Bot) suggestSubGroup(user table.User) {
-	b.send(newMsgForUser("Выберите подгруппу", user.ChatID, subGroupsKeyboard))
+	b.send(newMsgForUser("Выберите подгруппу", user.ChatID, &subGroupsKeyboard))
 }
 
 func (b *Bot) showThanksForRegistration(user table.User) {
-	b.send(newMsgForUser("Спасбо за регистрацию! Ты можешь настроить время отправки распиания в настройках.",
-		user.ChatID, toScheduleKeyboard))
+	b.send(newMsgForUser("Спасбо за регистрацию! Ты можешь отписаться от отправки расписания в настройках.",
+		user.ChatID, &toScheduleKeyboard))
 }
 
 func (b *Bot) showSubscribe(user table.User) {
-	var text string
+	var text = "Я могу присылать расписание каждый будний день в 8:00. \n \n"
 	if user.Subscribed {
-		text = "Отписаться?"
+		text += "Отписаться?"
 	} else {
-		text = "Данная функция находится в разработке. \n \nПодписаться?"
+		text += "Данная функция находится в разработке. \n \nПодписаться?"
 	}
 
-	b.send(newMsgForUser(text, user.ChatID, submitSubscribeKeyboard))
+	b.send(newMsgForUser(text, user.ChatID, &submitSubscribeKeyboard))
 }
 
 func (b *Bot) showSuccess(user table.User) {
-	b.send(newMsgForUser("Успешно!", user.ChatID, toScheduleKeyboard))
+	b.send(newMsgForUser("Успешно!", user.ChatID, &toScheduleKeyboard))
 }
 
 func (b *Bot) showSettings(user table.User) {
-	b.send(newMsgForUser("Настройки:", user.ChatID, settingsKeyboard))
+	b.send(newMsgForUser("Настройки:", user.ChatID, &settingsKeyboard))
 }
 
 func (b *Bot) addGroup(user table.User, group string) {
@@ -331,5 +361,5 @@ func (b *Bot) changeSubscribe(user table.User) {
 }
 
 func (b *Bot) showInfo(user table.User) {
-	b.send(newMsgForUser("привет, если возникли проблемы с расписанием, напиши мне @gasayminajj.", user.ChatID, infoKeyboard))
+	b.send(newMsgForUser("привет, если возникли проблемы с расписанием, напиши мне @gasayminajj.", user.ChatID, &infoKeyboard))
 }
