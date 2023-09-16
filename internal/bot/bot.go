@@ -92,7 +92,7 @@ func (b *Bot) Start(ctx context.Context) error {
 			continue
 		}
 
-		b.handleMessage()
+		b.handleMessage(update.Message)
 	}
 
 	return nil
@@ -186,7 +186,6 @@ func (b *Bot) sendNextPairToSubscribers(ctx context.Context) {
 		}
 
 		sleepUntilPair(now, offset+1)
-		time.Sleep(time.Second * 2)
 
 		b.mu.RLock()
 		for id := range b.subscribers {

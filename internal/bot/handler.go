@@ -15,14 +15,18 @@ import (
 
 // handleMessage handles commands.
 func (b *Bot) handleCommand(msg *api.Message) {
-	switch msg.Text {
-	case "/start":
+	switch cmd := msg.Command(); cmd {
+	case "group":
+		b.handleGroup(msg)
+	case "start":
 		b.handleStart(msg)
 	}
 }
 
 // handleMessage handles messages.
-func (b *Bot) handleMessage() {}
+func (b *Bot) handleMessage(msg *api.Message) {
+
+}
 
 // handleStart handles start command.
 func (b *Bot) handleStart(msg *api.Message) {
@@ -35,6 +39,22 @@ func (b *Bot) handleStart(msg *api.Message) {
 	if err != nil {
 		log.Println("send error: ", err)
 	}
+}
+
+func (b *Bot) handleGroup(msg *api.Message) {
+	user, err := b.storage.GetUserByID(msg.From.ID)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("get user error: %v", err.Error()))
+		return
+	}
+
+	group := msg.CommandArguments()
+	if !b.schedule.VerifyGroup(group) {
+		b.send(newMsgForUser("Неверная группа!", msg.Chat.ID, &toScheduleKeyboard))
+		return
+	}
+
+	b.addGroup(user, group)
 }
 
 func toDay(i int) string {
@@ -195,7 +215,11 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 
 	var sb strings.Builder
 	if len(day) > 0 {
-		sb.WriteString(fmt.Sprintf("День: %s\n\n", toDay(offset)))
+		if needNew {
+			sb.WriteString(fmt.Sprintf("Твое расписание на сегодня: \n\n"))
+		} else {
+			sb.WriteString(fmt.Sprintf("День: %s\n\n", toDay(offset)))
+		}
 	}
 
 	if len(day) == 0 {
@@ -286,7 +310,7 @@ func (b *Bot) register(chatID int64, from *api.User) {
 }
 
 func (b *Bot) suggestGroup(user table.User) {
-	b.send(newMsgForUser("Выберите группу", user.ChatID, &groupsKeyboard))
+	b.send(newMsgForUser("Напиши номер своей группы. Пример: 04 74-20. \n\nЕсли в номере группы есть буква, ее тоже нужно указать.", user.ChatID, &backKeyboard))
 }
 
 func (b *Bot) suggestSubGroup(user table.User) {
@@ -361,5 +385,5 @@ func (b *Bot) changeSubscribe(user table.User) {
 }
 
 func (b *Bot) showInfo(user table.User) {
-	b.send(newMsgForUser("привет, если возникли проблемы с расписанием, напиши мне @gasayminajj.", user.ChatID, &infoKeyboard))
+	b.send(newMsgForUser("привет, если возникли проблемы с расписанием, напиши мне @gasayminajj.", user.ChatID, &backKeyboard))
 }

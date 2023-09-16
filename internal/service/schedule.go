@@ -135,6 +135,18 @@ func (s *ScheduleService) GetDayGroupNames() []string {
 	return names
 }
 
+func (s *ScheduleService) VerifyGroup(g string) bool {
+	if s.schedule == nil {
+		return false
+	}
+
+	if _, ok := s.schedule[group(g)]; ok {
+		return true
+	}
+
+	return false
+}
+
 func (w week) IsNext(i int) bool {
 	return len(w)-1 > i
 }
@@ -257,7 +269,7 @@ func teacherAndSubject(str string) (string, string) {
 	split := strings.Split(str, " ")
 
 	if len(split) < 3 {
-		return "", ""
+		return "Нет информации", str
 	}
 
 	teacher := split[len(split)-2:]
@@ -271,6 +283,17 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 	timePair := cols[1]
 	_, _ = dayPair, timePair
 
+	var iCap = []int{1, 1, 1, 1, 1, 1, 1}
+
+	var idx = 0
+	for _, el := range dayPair[2:] {
+		if el != "" {
+			idx++
+			continue
+		}
+		iCap[idx]++
+	}
+
 	cols = cols[2:]
 
 	for colsIndx, col := range cols {
@@ -282,23 +305,28 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 
 		col = col[1:]
 
+		if gname == "09 118-23" {
+			print()
+		}
+
 		week := make(week, 5)
-		j := maxPairPerDay
+
+		var iCapCopy = make([]int, len(iCap))
+		copy(iCapCopy, iCap)
+
 		i := 0
 		for cellIndex, cell := range col {
-			if cell == "" {
-				j--
-				continue
-			}
-
-			if j < 0 {
-				j = maxPairPerDay
+			if iCap[i] == 0 {
 				i++
 			}
-			j--
-
 			if i == 5 {
 				break
+			}
+
+			iCap[i]--
+
+			if cell == "" {
+				continue
 			}
 
 			week[i] = append(week[i], kabAndPair{
@@ -306,6 +334,7 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 				kab:  cols[colsIndx+1][cellIndex+1],
 			})
 		}
+		copy(iCap, iCapCopy)
 
 		mp[group(gname)] = week
 	}

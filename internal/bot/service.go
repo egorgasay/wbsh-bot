@@ -48,6 +48,11 @@ var (
 	)
 
 	groupsKeyboard = api.NewInlineKeyboardMarkup()
+	//chooseGroupKeyboard = api.NewInlineKeyboardMarkup(
+	//	api.NewInlineKeyboardRow(
+	//		api.NewInlineKeyboardButtonData("Ввести вручную", start),
+	//		api.NewInlineKeyboardButtonData("Выбрать из списка", start),
+	//	))
 
 	scheduleKeyboard = api.NewInlineKeyboardMarkup(
 		api.NewInlineKeyboardRow(
@@ -73,7 +78,7 @@ var (
 		),
 	)
 
-	infoKeyboard = api.NewInlineKeyboardMarkup(
+	backKeyboard = api.NewInlineKeyboardMarkup(
 		api.NewInlineKeyboardRow(
 			api.NewInlineKeyboardButtonData("Назад", start),
 		),
