@@ -180,10 +180,10 @@ func (b *Bot) sendNextPairToSubscribers(ctx context.Context) {
 
 	for ctx.Err() == nil {
 		now := time.Now().In(mskLoc)
-		//if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
-		//	sleepToTheEndOfDay()
-		//	continue
-		//}
+		if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+			sleepToTheEndOfDay()
+			continue
+		}
 
 		sleepUntilPair(now, offset+1)
 		time.Sleep(time.Second * 2)
