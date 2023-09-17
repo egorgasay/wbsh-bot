@@ -6,27 +6,23 @@ import (
 
 // Group of constants for bot messages
 const (
-	startMessage = "👋 Привет! Я бот, который поможет тебе посмотреть расписание:) \n\n Стадия: Закрытое бета тестирование \n Версия: v0.3.1"
-	infoMessage  = "Средняя оценка: {{ .Avg }} ⭐️\n"
-	itemMessage  = "{{ .Name }} \n{{ .Price }}р.\n{{ .Description }}"
+	startMessage = "👋 Привет! Я бот, который поможет тебе посмотреть расписание:) \n\nЧто нового v0.4.0:\n1. Добавлена поддержка Баскова и Каменноостровского.\n2. Теперь я отправляю короткие напомининия о новых парах на переменах.\n\n Стадия: Закрытое бета тестирование \n Версия: v0.4.0"
 )
 
 // Group of constants for handling messages from user.
 const (
-	schedule        = "Расписание"
-	silence         = "silence"
-	start           = "start"
-	feedBack        = "Оставить отзыв"
-	sorryHeight     = "Неверный размер"
-	size            = "размер"
-	items           = "Предметы"
-	info            = "info"
-	subgroup        = "subgroup"
-	group           = "group"
-	changeGroup     = "changeGroup"
-	settings        = "settings"
-	sendSchedule    = "sendSchedule"
-	changeSubscribe = "changeSubscribe"
+	schedule             = "Расписание"
+	silence              = "silence"
+	start                = "start"
+	info                 = "info"
+	subgroup             = "subgroup"
+	group                = "group"
+	changeGroup          = "changeGroup"
+	settings             = "settings"
+	sendSchedule         = "sendSchedule"
+	sendPair             = "sendPair"
+	changeDailySubscribe = "changeDailySubscribe"
+	changePairSubscribe  = "changePairSubscribe"
 )
 
 var groupButtons = make([][]api.InlineKeyboardButton, 0)
@@ -46,13 +42,6 @@ var (
 			api.NewInlineKeyboardButtonData("Помощь ℹ️", info),
 		),
 	)
-
-	groupsKeyboard = api.NewInlineKeyboardMarkup()
-	//chooseGroupKeyboard = api.NewInlineKeyboardMarkup(
-	//	api.NewInlineKeyboardRow(
-	//		api.NewInlineKeyboardButtonData("Ввести вручную", start),
-	//		api.NewInlineKeyboardButtonData("Выбрать из списка", start),
-	//	))
 
 	scheduleKeyboard = api.NewInlineKeyboardMarkup(
 		api.NewInlineKeyboardRow(
@@ -92,13 +81,23 @@ var (
 			api.NewInlineKeyboardButtonData("Отправка расписания", sendSchedule),
 		),
 		api.NewInlineKeyboardRow(
+			api.NewInlineKeyboardButtonData("Отправка пар", sendPair),
+		),
+		api.NewInlineKeyboardRow(
 			api.NewInlineKeyboardButtonData("Назад", start),
 		),
 	)
 
-	submitSubscribeKeyboard = api.NewInlineKeyboardMarkup(
+	submitDailyScheduleSubscribeKeyboard = api.NewInlineKeyboardMarkup(
 		api.NewInlineKeyboardRow(
-			api.NewInlineKeyboardButtonData("Подтвердить", changeSubscribe),
+			api.NewInlineKeyboardButtonData("Подтвердить", changeDailySubscribe),
+			api.NewInlineKeyboardButtonData("Назад", start),
+		),
+	)
+
+	submitPairSubscribeKeyboard = api.NewInlineKeyboardMarkup(
+		api.NewInlineKeyboardRow(
+			api.NewInlineKeyboardButtonData("Подтвердить", changePairSubscribe),
 			api.NewInlineKeyboardButtonData("Назад", start),
 		),
 	)

@@ -43,8 +43,6 @@ func New(token string, schedule *service.ScheduleService, logger *zap.Logger, st
 		storage:  storage,
 	}
 
-	bot.formGroups(schedule.GetDayGroupNames())
-
 	return bot, nil
 }
 
@@ -103,32 +101,6 @@ func (b *Bot) Stop() {
 	b.StopReceivingUpdates()
 }
 
-func (b *Bot) formGroups(groups []string) {
-	groupButtons = groupButtons[:0]
-
-	var buttons []api.InlineKeyboardButton
-	for _, group := range groups {
-		buttons = append(buttons,
-			api.NewInlineKeyboardButtonData(group, "group::"+group),
-		)
-
-		if len(buttons) == 3 {
-			groupButtons = append(groupButtons,
-				api.NewInlineKeyboardRow(buttons...),
-			)
-			buttons = []api.InlineKeyboardButton{}
-		}
-	}
-
-	if len(buttons) > 0 {
-		groupButtons = append(groupButtons,
-			api.NewInlineKeyboardRow(buttons...),
-		)
-	}
-
-	groupsKeyboard = api.NewInlineKeyboardMarkup(groupButtons...)
-}
-
 func (b *Bot) sendDailyToSubscribers(ctx context.Context) {
 	lastDay := time.Weekday(-1)
 
@@ -181,9 +153,11 @@ func (b *Bot) sendNextPairToSubscribers(ctx context.Context) {
 	for ctx.Err() == nil {
 		now := time.Now().In(mskLoc)
 		if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
-			sleepToTheEndOfDay()
+			sleepToTheEndOfDay(now)
 			continue
 		}
+
+		time.Sleep(5 * time.Second)
 
 		sleepUntilPair(now, offset+1)
 
@@ -199,7 +173,7 @@ func (b *Bot) sendNextPairToSubscribers(ctx context.Context) {
 				continue
 			}
 
-			if now.Before(user.SilenceUntil.In(mskLoc)) {
+			if now.Before(user.SilenceUntil.In(mskLoc)) || !user.SubscribedPair {
 				continue
 			}
 
@@ -208,7 +182,7 @@ func (b *Bot) sendNextPairToSubscribers(ctx context.Context) {
 				if errors.Is(err, ErrNoPair) {
 					continue
 				}
-				b.logger.Warn(fmt.Sprintf("sendToSubscribers error: handleNextPair error: %v", err.Error()))
+				b.logger.Warn(fmt.Sprintf("sendNextPairToSubscribers error: handleNextPair error: %v", err.Error()))
 				continue
 			}
 
@@ -220,7 +194,7 @@ func (b *Bot) sendNextPairToSubscribers(ctx context.Context) {
 
 		if offset >= maxPairs {
 			offset = 0
-			sleepToTheEndOfDay()
+			sleepToTheEndOfDay(now)
 		}
 	}
 }
@@ -243,23 +217,23 @@ func (b *Bot) silence(user table.User) {
 func sleepUntilPair(now time.Time, pair int) {
 	switch pair {
 	case 1:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, mskLoc))
+		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 8, 55, 0, 0, mskLoc))
 	case 2:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 10, 30, 0, 0, mskLoc))
+		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 10, 35, 0, 0, mskLoc))
 	case 3:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 12, 10, 0, 0, mskLoc))
+		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 12, 20, 0, 0, mskLoc))
 	case 4:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 14, 00, 0, 0, mskLoc))
+		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 14, 10, 0, 0, mskLoc))
 	case 5:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 16, 00, 0, 0, mskLoc))
+		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 15, 55, 0, 0, mskLoc))
 	case 6:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 17, 40, 0, 0, mskLoc))
+		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 17, 35, 0, 0, mskLoc))
 	}
 }
 
-func sleepToTheEndOfDay() {
+func sleepToTheEndOfDay(now time.Time) {
 	log.Println("sleep to the end of the day")
-	sleepUntilTime(time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 23, 59, 59, 0, mskLoc))
+	sleepUntilTime(now.Add(time.Hour*24 - time.Duration(now.Hour())*time.Hour - time.Duration(now.Minute())*time.Minute - time.Duration(now.Second())*time.Second))
 }
 
 func sleepUntilTime(t time.Time) {

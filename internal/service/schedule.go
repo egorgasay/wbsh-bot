@@ -333,6 +333,13 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 				pair: cell,
 				kab:  cols[colsIndx+1][cellIndex+1],
 			})
+
+			if cell == "ВПР" {
+				week[i] = append(week[i], kabAndPair{
+					pair: cell,
+					kab:  cols[colsIndx+1][cellIndex+1],
+				})
+			}
 		}
 		copy(iCap, iCapCopy)
 

@@ -140,9 +140,13 @@ func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
 	case settings:
 		b.showSettings(user)
 	case sendSchedule:
-		b.showSubscribe(user)
-	case changeSubscribe:
-		b.changeSubscribe(user)
+		b.showDailyScheduleSubscribe(user)
+	case sendPair:
+		b.showPairSubscribe(user)
+	case changeDailySubscribe:
+		b.changeDailySubscribe(user)
+	case changePairSubscribe:
+		b.changePairSubscribe(user)
 	case info:
 		b.showInfo(user)
 	case silence:
@@ -310,11 +314,11 @@ func (b *Bot) register(chatID int64, from *api.User) {
 }
 
 func (b *Bot) suggestGroup(user table.User) {
-	b.send(newMsgForUser("Напиши номер своей группы. Пример: 04 74-20. \n\nЕсли в номере группы есть буква, ее тоже нужно указать.", user.ChatID, &backKeyboard))
+	b.send(newMsgForUser("Напиши номер своей группы. Пример:\n /group 04 74-20 \n\nЕсли в номере группы есть буква, ее тоже нужно указать.", user.ChatID, &backKeyboard))
 }
 
 func (b *Bot) suggestSubGroup(user table.User) {
-	b.send(newMsgForUser("Выберите подгруппу", user.ChatID, &subGroupsKeyboard))
+	b.send(newMsgForUser("Выбери подгруппу", user.ChatID, &subGroupsKeyboard))
 }
 
 func (b *Bot) showThanksForRegistration(user table.User) {
@@ -322,15 +326,26 @@ func (b *Bot) showThanksForRegistration(user table.User) {
 		user.ChatID, &toScheduleKeyboard))
 }
 
-func (b *Bot) showSubscribe(user table.User) {
+func (b *Bot) showDailyScheduleSubscribe(user table.User) {
 	var text = "Я могу присылать расписание каждый будний день в 8:00. \n \n"
 	if user.Subscribed {
 		text += "Отписаться?"
 	} else {
-		text += "Данная функция находится в разработке. \n \nПодписаться?"
+		text += "Подписаться?"
 	}
 
-	b.send(newMsgForUser(text, user.ChatID, &submitSubscribeKeyboard))
+	b.send(newMsgForUser(text, user.ChatID, &submitDailyScheduleSubscribeKeyboard))
+}
+
+func (b *Bot) showPairSubscribe(user table.User) {
+	var text = "Я могу присылать напоминание о каждой паре на перемене. \n \n"
+	if user.Subscribed {
+		text += "Отписаться?"
+	} else {
+		text += "Подписаться?"
+	}
+
+	b.send(newMsgForUser(text, user.ChatID, &submitPairSubscribeKeyboard))
 }
 
 func (b *Bot) showSuccess(user table.User) {
@@ -374,8 +389,18 @@ func (b *Bot) send(c api.Chattable) {
 	}
 }
 
-func (b *Bot) changeSubscribe(user table.User) {
+func (b *Bot) changeDailySubscribe(user table.User) {
 	user.Subscribed = !user.Subscribed
+	err := b.storage.SaveUser(user)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("changeSubscribe save error: %v", err.Error()))
+	}
+
+	b.showSuccess(user)
+}
+
+func (b *Bot) changePairSubscribe(user table.User) {
+	user.SubscribedPair = !user.SubscribedPair
 	err := b.storage.SaveUser(user)
 	if err != nil {
 		b.logger.Warn(fmt.Sprintf("changeSubscribe save error: %v", err.Error()))
