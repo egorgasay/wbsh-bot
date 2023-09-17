@@ -27,4 +27,5 @@ require (
 	golang.org/x/crypto v0.12.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
+	gopkg.in/telebot.v3 v3.1.3 // indirect
 )

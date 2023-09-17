@@ -3,6 +3,7 @@ package main
 import (
 	"bot/config"
 	"bot/internal/bot"
+	"bot/internal/handler"
 	"bot/internal/service"
 	"bot/internal/storage"
 	"context"
@@ -25,6 +26,8 @@ func main() {
 		log.Fatalf("storage error: %s", err)
 	}
 
+	_ = store
+
 	schedule, err := service.NewSchedule(cfg)
 	if err != nil {
 		log.Fatalf("NewSchedule error: %s", err)
@@ -44,15 +47,26 @@ func main() {
 		log.Fatalf("bot error: %s", err)
 	}
 
+	h, start, stop, err := handler.New(cfg)
+	if err != nil {
+		logger.Fatal("handler error: %s", zap.Error(err))
+	}
+
+	_ = h
+	_ = start
+	_ = stop
+	_ = b
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	_ = ctx
+
 	go func() {
 		log.Println("Starting Bot ...")
-		err := b.Start(ctx)
-		if err != nil {
-			log.Fatalf("bot error: %s", err)
-		}
+		start()
+
+		//b.Start(ctx)
 	}()
 
 	go upMockHTTPServer()
@@ -64,7 +78,7 @@ func main() {
 
 	log.Println("Shutdown Bot ...")
 
-	b.Stop()
+	// stop()
 }
 
 func upMockHTTPServer() {

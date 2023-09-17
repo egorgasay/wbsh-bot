@@ -16,8 +16,6 @@ import (
 // handleMessage handles commands.
 func (b *Bot) handleCommand(msg *api.Message) {
 	switch cmd := msg.Command(); cmd {
-	case "group":
-		b.handleGroup(msg)
 	case "start":
 		b.handleStart(msg)
 	}
@@ -25,7 +23,22 @@ func (b *Bot) handleCommand(msg *api.Message) {
 
 // handleMessage handles messages.
 func (b *Bot) handleMessage(msg *api.Message) {
+	user, err := b.storage.GetUserByID(msg.From.ID)
+	if err != nil {
+		if !errors.Is(err, storage.ErrUserNotFound) { // TODO:
+			b.logger.Warn(fmt.Sprintf("get user error: %v", err.Error()))
+			return
+		}
 
+		b.register(msg.Chat.ID, msg.From)
+		return
+	}
+
+	if user.Group == "" {
+		group := msg.Text
+		b.addGroup(user, group)
+		return
+	}
 }
 
 // handleStart handles start command.
@@ -125,6 +138,11 @@ func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
 		}
 
 		b.register(query.Message.Chat.ID, query.From)
+		return
+	}
+
+	if user.Group == "" {
+		b.suggestGroup(user)
 		return
 	}
 
@@ -315,7 +333,14 @@ func (b *Bot) register(chatID int64, from *api.User) {
 }
 
 func (b *Bot) suggestGroup(user table.User) {
-	b.send(newMsgForUser("Напиши номер своей группы. Пример:\n /group 04 74-20 \n\nЕсли в номере группы есть буква, ее тоже нужно указать.", user.ChatID, &backKeyboard))
+	user.Group = ""
+
+	err := b.storage.SaveUser(user)
+	if err != nil {
+		b.logger.Warn(fmt.Sprintf("suggestGroup save error: %v", err.Error()))
+	}
+
+	b.send(newMsgForUser("Напиши номер своей группы. Пример: 04 74-20 \n\nЕсли в номере группы есть буква, ее тоже нужно указать.", user.ChatID, nil))
 }
 
 func (b *Bot) suggestSubGroup(user table.User) {
@@ -358,6 +383,11 @@ func (b *Bot) showSettings(user table.User) {
 }
 
 func (b *Bot) addGroup(user table.User, group string) {
+	if !b.schedule.VerifyGroup(group) {
+		b.send(newMsgForUser("Неверная группа!", user.ChatID, nil))
+		return
+	}
+
 	user.Group = group
 	err := b.storage.SaveUser(user)
 	if err != nil {
