@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bot/internal/constant"
 	"bot/internal/entity/table"
 	"errors"
 	"fmt"
@@ -12,12 +13,6 @@ import (
 type Storage struct {
 	db *gorm.DB
 }
-
-// ErrUserNotFound error for item not found.
-var (
-	ErrUserNotFound  = errors.New("item not found")
-	ErrNoSubscribers = errors.New("no subscribers")
-)
 
 type Config struct {
 	DSN string `json:"dsn"`
@@ -47,7 +42,7 @@ func New(config Config) (*Storage, error) {
 func (s *Storage) GetUserByID(ID int) (u table.User, err error) {
 	if err := s.db.First(&u, "id = ?", ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return u, ErrUserNotFound
+			return u, constant.ErrUserNotFound
 		}
 		return u, err
 	}
@@ -76,7 +71,7 @@ func (s *Storage) GetSubscribers() (subs []table.User, err error) {
 	}
 
 	if len(subs) == 0 {
-		return subs, ErrNoSubscribers
+		return subs, constant.ErrNoSubscribers
 	}
 
 	return subs, nil

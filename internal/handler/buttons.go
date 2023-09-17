@@ -8,6 +8,7 @@ var (
 	scheduleButton = tb.InlineButton{
 		Unique: "schedule",
 		Text:   "📅 Расписание",
+		Data:   "-1",
 	}
 
 	settingsButton = tb.InlineButton{
@@ -23,5 +24,15 @@ var (
 	toMainMenu = tb.InlineButton{
 		Unique: "toMainMenu",
 		Text:   "⬅ Назад",
+	}
+
+	firstSubGroup = tb.InlineButton{
+		Unique: "firstSubGroup",
+		Text:   "👥 Первая подгруппа",
+	}
+
+	secondSubGroup = tb.InlineButton{
+		Unique: "secondSubGroup",
+		Text:   "👥 Вторая подгруппа",
 	}
 )

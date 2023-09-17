@@ -2,6 +2,7 @@ package service
 
 import (
 	"bot/config"
+	"bot/internal/constant"
 	"bot/internal/storage"
 	"fmt"
 	"github.com/xuri/excelize/v2"
@@ -31,6 +32,96 @@ type (
 	WorkDay    []PairEntity
 	WorkWeek   []WorkDay
 )
+
+func toDay(i int) string {
+	switch i {
+	case 0:
+		return "Понедельник"
+	case 1:
+		return "Вторник"
+	case 2:
+		return "Среда"
+	case 3:
+		return "Четверг"
+	case 4:
+		return "Пятница"
+	case 5:
+		return "Суббота"
+	case 6:
+		return "Воскресенье"
+	}
+
+	return ""
+}
+
+func findGroup(pe PairEntity, groupID int) (Pair, error) {
+	//if groupID == -1 && len(pe) == 2 { // TODO:
+	//	return service.Pair{
+	//		Teacher: "",
+	//		Subject: "",
+	//		Room:    "",
+	//		Group:   0,
+	//	}, nil
+	//
+	//}
+	//
+
+	if pe == nil {
+		return Pair{}, constant.ErrNoPair
+	}
+
+	for _, p := range pe {
+		if p.Group == groupID || p.Group == 0 {
+			return p, nil
+		}
+	}
+	return Pair{}, constant.ErrGroupNotFound
+}
+
+func DayToString(day WorkDay, needNew bool, offset int, subGroup int) string {
+	var sb strings.Builder
+	if len(day) > 0 {
+		if needNew {
+			sb.WriteString(fmt.Sprintf("Твое ближайшее расписание: \n\n"))
+		} else {
+			sb.WriteString(fmt.Sprintf("День: %s\n\n", toDay(offset)))
+		}
+	}
+
+	if len(day) == 0 {
+		sb.WriteString("Нет пар на этот день")
+		return sb.String()
+	}
+
+	for i, pairE := range day {
+		actualPair, err := findGroup(pairE, subGroup)
+		if err != nil {
+			switch err {
+			case constant.ErrGroupNotFound:
+				sb.WriteString(
+					fmt.Sprintf(
+						"№%d\nПара у другой группы\n\n", i+1,
+					),
+				)
+			case constant.ErrNoPair:
+				sb.WriteString(
+					fmt.Sprintf(
+						"№%d\nПара не найдена, проверьте на сайте на всякий случай)\n\n", i+1,
+					),
+				)
+			}
+		} else {
+			sb.WriteString(
+				fmt.Sprintf(
+					"№%d\nПредмет: %s\nКабинет: %s\nПреподаватель: %s\n\n",
+					i+1, actualPair.Subject, actualPair.Room, actualPair.Teacher,
+				),
+			)
+		}
+	}
+
+	return sb.String()
+}
 
 func NewSchedule(c config.Config) (*ScheduleService, error) {
 

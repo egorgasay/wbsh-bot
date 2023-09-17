@@ -1,9 +1,9 @@
 package bot
 
 import (
+	"bot/internal/constant"
 	"bot/internal/entity/table"
 	"bot/internal/service"
-	"bot/internal/storage"
 	"errors"
 	"fmt"
 	api "gopkg.in/telegram-bot-api.v4"
@@ -25,7 +25,7 @@ func (b *Bot) handleCommand(msg *api.Message) {
 func (b *Bot) handleMessage(msg *api.Message) {
 	user, err := b.storage.GetUserByID(msg.From.ID)
 	if err != nil {
-		if !errors.Is(err, storage.ErrUserNotFound) { // TODO:
+		if !errors.Is(err, constant.ErrUserNotFound) { // TODO:
 			b.logger.Warn(fmt.Sprintf("get user error: %v", err.Error()))
 			return
 		}
@@ -132,7 +132,7 @@ func (b *Bot) handleCallbackQuery(query *api.CallbackQuery) {
 
 	user, err := b.storage.GetUserByID(query.From.ID)
 	if err != nil {
-		if !errors.Is(err, storage.ErrUserNotFound) { // TODO:
+		if !errors.Is(err, constant.ErrUserNotFound) { // TODO:
 			b.logger.Warn(fmt.Sprintf("get user error: %v", err.Error()))
 			return
 		}

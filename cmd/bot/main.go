@@ -47,7 +47,9 @@ func main() {
 		log.Fatalf("bot error: %s", err)
 	}
 
-	h, start, stop, err := handler.New(cfg)
+	core := service.NewCore(schedule, store)
+
+	h, start, stop, err := handler.New(cfg, core)
 	if err != nil {
 		logger.Fatal("handler error: %s", zap.Error(err))
 	}

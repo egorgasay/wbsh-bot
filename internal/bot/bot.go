@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"bot/internal/constant"
 	"bot/internal/entity/table"
 	"bot/internal/service"
 	"bot/internal/storage"
@@ -59,7 +60,7 @@ func (b *Bot) Start(ctx context.Context) error {
 	}
 
 	err = b.formSubscribers()
-	if err != nil && !errors.Is(err, storage.ErrNoSubscribers) {
+	if err != nil && !errors.Is(err, constant.ErrNoSubscribers) {
 		return fmt.Errorf("form subscribers: %w", err)
 	}
 
