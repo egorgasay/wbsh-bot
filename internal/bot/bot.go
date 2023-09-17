@@ -157,8 +157,6 @@ func (b *Bot) sendNextPairToSubscribers(ctx context.Context) {
 			continue
 		}
 
-		time.Sleep(5 * time.Second)
-
 		sleepUntilPair(now, offset+1)
 
 		b.mu.RLock()

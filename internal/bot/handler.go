@@ -220,7 +220,7 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 	var sb strings.Builder
 	if len(day) > 0 {
 		if needNew {
-			sb.WriteString(fmt.Sprintf("Твое расписание на сегодня: \n\n"))
+			sb.WriteString(fmt.Sprintf("Твое ближайшее расписание: \n\n"))
 		} else {
 			sb.WriteString(fmt.Sprintf("День: %s\n\n", toDay(offset)))
 		}
@@ -292,12 +292,13 @@ func (b *Bot) handleNextPair(user table.User, offset int) (msg api.Chattable, er
 
 func (b *Bot) register(chatID int64, from *api.User) {
 	us := table.User{
-		ID:         from.ID,
-		ChatID:     chatID,
-		Name:       from.FirstName,
-		Nickname:   from.UserName,
-		Admin:      false,
-		Subscribed: true,
+		ID:             from.ID,
+		ChatID:         chatID,
+		Name:           from.FirstName,
+		Nickname:       from.UserName,
+		Admin:          false,
+		Subscribed:     true,
+		SubscribedPair: true,
 	}
 	err := b.storage.AddUser(us)
 	if err != nil {
@@ -339,7 +340,7 @@ func (b *Bot) showDailyScheduleSubscribe(user table.User) {
 
 func (b *Bot) showPairSubscribe(user table.User) {
 	var text = "Я могу присылать напоминание о каждой паре на перемене. \n \n"
-	if user.Subscribed {
+	if user.SubscribedPair {
 		text += "Отписаться?"
 	} else {
 		text += "Подписаться?"
