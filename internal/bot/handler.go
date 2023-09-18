@@ -231,7 +231,7 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 	day, err := b.schedule.GetDayByGroup(user.Group, offset)
 	if err != nil {
 		b.logger.Warn(fmt.Sprintf("get day error: %v", err.Error()))
-		text = "Ошибка получения расписания"
+		text = "Ошибка получения расписания. Попробуй еще раз изменить группу в настройках. Сообщи об этом @gasayminajj ."
 		return msg
 	}
 
@@ -340,7 +340,7 @@ func (b *Bot) suggestGroup(user table.User) {
 		b.logger.Warn(fmt.Sprintf("suggestGroup save error: %v", err.Error()))
 	}
 
-	b.send(newMsgForUser("Напиши номер своей группы. Пример: 04 74-20 \n\nЕсли в номере группы есть буква, ее тоже нужно указать.", user.ChatID, nil))
+	b.send(newMsgForUser("Напиши номер своей группы. \n\nПРИМЕР: \n04 74-20 \n\nЕсли в номере группы есть буква, ее тоже нужно указать.", user.ChatID, nil))
 }
 
 func (b *Bot) suggestSubGroup(user table.User) {

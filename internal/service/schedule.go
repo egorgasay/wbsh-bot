@@ -6,6 +6,7 @@ import (
 	"bot/internal/storage"
 	"fmt"
 	"github.com/xuri/excelize/v2"
+	"sort"
 	"strings"
 )
 
@@ -300,6 +301,8 @@ func newFromKabAndPair(kap kabAndPair) ([]Pair, error) {
 		case 2:
 			g1 := strings.Trim(split[0], " \n1гр.")
 			g2 := strings.Trim(split[1], " \n2гр.")
+			g1 = strings.Replace(g1, "\n", " ", -1)
+			g2 = strings.Replace(g2, "\n", " ", -1)
 
 			g2Split := strings.Split(g2, " ")
 
@@ -387,6 +390,24 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 
 	cols = cols[2:]
 
+	lengths := allLengths(cols)
+
+	goodPairs := lengths[0]
+	// wrongPairs := -1
+	goodKabs := lengths[1]
+	// wrongKabs := -1
+
+	if len(lengths) == 4 {
+		goodPairs = lengths[0]
+		// wrongPairs = lengths[1]
+		goodKabs = lengths[3]
+		// wrongKabs = lengths[3]
+	}
+
+	// because of col = col[1:]
+	goodPairs--
+	goodKabs--
+
 	for colsIndx, col := range cols {
 		gname := col[0]
 
@@ -396,14 +417,24 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 
 		col = col[1:]
 
-		if gname == "09 118-23" {
-			print()
-		}
+		//if gname == "04 74-20" {
+		//	print()
+		//}
+		//
+		//if gname == "03 70-23" {
+		//	print()
+		//}
 
 		week := make(week, 5)
 
 		var iCapCopy = make([]int, len(iCap))
 		copy(iCapCopy, iCap)
+
+		if len(col) != goodPairs && len(col) != goodKabs {
+			for i := range iCap {
+				iCap[i] *= 2
+			}
+		}
 
 		i := 0
 		for cellIndex, cell := range col {
@@ -438,4 +469,20 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 	}
 
 	return mp
+}
+
+func allLengths(cols [][]string) []int {
+	var lengths = make(map[int]struct{})
+	for _, col := range cols {
+		lengths[len(col)] = struct{}{}
+	}
+
+	var res []int
+	for l := range lengths {
+		res = append(res, l)
+	}
+
+	sort.Ints(res)
+
+	return res
 }

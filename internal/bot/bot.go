@@ -158,7 +158,9 @@ func (b *Bot) sendNextPairToSubscribers(ctx context.Context) {
 			continue
 		}
 
-		sleepUntilPair(now, offset+1)
+		time.Sleep(5 * time.Second)
+
+		offset = sleepUntilPair(now, offset+1)
 
 		b.mu.RLock()
 		for id := range b.subscribers {
@@ -213,20 +215,60 @@ func (b *Bot) silence(user table.User) {
 	b.send(newMsgForUser("Вы отписались от рассылки расписания до конца дня!", user.ChatID, &toScheduleKeyboard))
 }
 
-func sleepUntilPair(now time.Time, pair int) {
+func sleepUntilPair(now time.Time, pair int) int {
 	switch pair {
 	case 1:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 8, 55, 0, 0, mskLoc))
+		firstPair := time.Date(now.Year(), now.Month(), now.Day(), 8, 55, 0, 0, mskLoc)
+		if !now.After(firstPair) {
+			sleepUntilTime(firstPair)
+			return pair
+		}
+		pair++
+		fallthrough
 	case 2:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 10, 35, 0, 0, mskLoc))
+		secondPair := time.Date(now.Year(), now.Month(), now.Day(), 10, 30, 0, 0, mskLoc)
+		if !now.After(secondPair) {
+			sleepUntilTime(secondPair)
+			return pair
+		}
+		pair++
+		fallthrough
 	case 3:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 12, 20, 0, 0, mskLoc))
+		thirdPair := time.Date(now.Year(), now.Month(), now.Day(), 12, 10, 0, 0, mskLoc)
+		if !now.After(thirdPair) {
+			sleepUntilTime(thirdPair)
+			return pair
+		}
+		pair++
+		fallthrough
 	case 4:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 14, 10, 0, 0, mskLoc))
+		fourthPair := time.Date(now.Year(), now.Month(), now.Day(), 14, 00, 0, 0, mskLoc)
+		if !now.After(fourthPair) {
+			sleepUntilTime(fourthPair)
+			return pair
+		}
+		pair++
+		fallthrough
 	case 5:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 15, 55, 0, 0, mskLoc))
+		fifthPair := time.Date(now.Year(), now.Month(), now.Day(), 15, 50, 0, 0, mskLoc)
+		if !now.After(fifthPair) {
+			sleepUntilTime(fifthPair)
+			return pair
+		}
+		pair++
+		fallthrough
 	case 6:
-		sleepUntilTime(time.Date(now.Year(), now.Month(), now.Day(), 17, 35, 0, 0, mskLoc))
+		sixthPair := time.Date(now.Year(), now.Month(), now.Day(), 17, 30, 0, 0, mskLoc)
+		if !now.After(sixthPair) {
+			sleepUntilTime(sixthPair)
+			return pair
+		}
+		pair++
+		fallthrough
+	default:
+		log.Println("sleepUntilPair: sleep to the end of the day")
+		sleepToTheEndOfDay(now)
+		return 1
 	}
 }
 
