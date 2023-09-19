@@ -268,7 +268,8 @@ func sleepUntilPair(now time.Time, pair int) int {
 	default:
 		log.Println("sleepUntilPair: sleep to the end of the day")
 		sleepToTheEndOfDay(now)
-		return 1
+		time.Sleep(time.Second * 5)
+		return sleepUntilPair(time.Now().In(mskLoc), 1)
 	}
 }
 
