@@ -233,7 +233,6 @@ func weekdayToInt(w time.Weekday) int {
 func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.Chattable) {
 	needNew := false
 	weekDay := time.Now().Weekday()
-	monthDay := time.Now().Day()
 
 	offset, err := strconv.Atoi(text)
 	if err != nil {
@@ -242,6 +241,7 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 		offset = weekdayToInt(weekDay)
 		needNew = true
 	}
+	monthDay := time.Now().Add(time.Hour * 24 * time.Duration(offset)).Day()
 
 	defer func() {
 		if needNew {
@@ -263,7 +263,7 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 		if needNew {
 			sb.WriteString(fmt.Sprintf("Твое ближайшее расписание на %s %d:\n\n", toDay(offset), monthDay))
 		} else {
-			sb.WriteString(fmt.Sprintf("День: %s\n\n", toDay(offset)))
+			sb.WriteString(fmt.Sprintf("День: %s %d\n\n", toDay(offset), monthDay))
 		}
 	}
 
