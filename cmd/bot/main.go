@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 )
 
 func main() {
@@ -71,7 +72,7 @@ func main() {
 		//b.Start(ctx)
 	}()
 
-	go upMockHTTPServer()
+	go upMockHTTPServer(cfg)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
@@ -83,7 +84,19 @@ func main() {
 	// stop()
 }
 
-func upMockHTTPServer() {
+func upMockHTTPServer(cfg config.Config) {
+	fs := http.FileServer(http.Dir(func() string {
+		split := strings.Split(cfg.StorageConfig.DSN, "/")
+		if len(split) < 2 {
+			return "."
+		}
+
+		return "/data"
+	}()))
+
+	// Устанавливаем путь, по которому будет доступна папка веб-сайта
+	http.Handle("/data/", http.StripPrefix("/data/", fs))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello!")
 	})

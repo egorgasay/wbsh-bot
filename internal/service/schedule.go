@@ -394,7 +394,12 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 
 	goodPairs := lengths[0]
 	// wrongPairs := -1
-	goodKabs := lengths[1]
+	goodKabs := 0
+	if len(lengths) == 1 {
+		goodKabs = lengths[0]
+	} else {
+		goodKabs = lengths[1]
+	}
 	// wrongKabs := -1
 
 	if len(lengths) == 4 {

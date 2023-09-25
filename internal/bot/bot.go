@@ -108,7 +108,7 @@ func (b *Bot) sendDailyToSubscribers(ctx context.Context) {
 	for ctx.Err() == nil {
 		now := time.Now().In(mskLoc)
 		hour := now.Hour()
-		day := time.Weekday(now.Day())
+		day := now.Weekday()
 
 		isWeekend := day == time.Saturday || day == time.Sunday
 		if (hour != 8 || day == lastDay) || isWeekend {
@@ -153,7 +153,8 @@ func (b *Bot) sendNextPairToSubscribers(ctx context.Context) {
 
 	for ctx.Err() == nil {
 		now := time.Now().In(mskLoc)
-		if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+		day := now.Weekday()
+		if day == time.Saturday || day == time.Sunday {
 			sleepToTheEndOfDay(now)
 			continue
 		}

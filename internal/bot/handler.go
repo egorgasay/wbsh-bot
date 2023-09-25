@@ -18,6 +18,8 @@ func (b *Bot) handleCommand(msg *api.Message) {
 	switch cmd := msg.Command(); cmd {
 	case "start":
 		b.handleStart(msg)
+	case "unsub_all_from_pairs":
+		b.handleUnsubAllFromPairs()
 	}
 }
 
@@ -52,6 +54,25 @@ func (b *Bot) handleStart(msg *api.Message) {
 	if err != nil {
 		log.Println("send error: ", err)
 	}
+}
+
+func (b *Bot) handleUnsubAllFromPairs() {
+	b.mu.RLock()
+	for id := range b.subscribers {
+		user, err := b.storage.GetUserByID(id)
+		if err != nil {
+			b.logger.Warn(fmt.Sprintf("handleUnsubAllFromPairs error: GetUserByID error: %v", err.Error()))
+			continue
+		}
+
+		user.SubscribedPair = false
+		err = b.storage.SaveUser(user)
+		if err != nil {
+			b.logger.Warn(fmt.Sprintf("handleUnsubAllFromPairs error: SaveUser error: %v", err.Error()))
+			continue
+		}
+	}
+	b.mu.RUnlock()
 }
 
 func (b *Bot) handleGroup(msg *api.Message) {
@@ -211,12 +232,14 @@ func weekdayToInt(w time.Weekday) int {
 
 func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.Chattable) {
 	needNew := false
+	weekDay := time.Now().Weekday()
+	monthDay := time.Now().Day()
 
 	offset, err := strconv.Atoi(text)
 	if err != nil {
 		b.logger.Warn(fmt.Sprintf("get offset error: %v", err.Error()))
 	} else if offset == -1 {
-		offset = weekdayToInt(time.Now().Weekday())
+		offset = weekdayToInt(weekDay)
 		needNew = true
 	}
 
@@ -238,7 +261,7 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 	var sb strings.Builder
 	if len(day) > 0 {
 		if needNew {
-			sb.WriteString(fmt.Sprintf("Твое ближайшее расписание: \n\n"))
+			sb.WriteString(fmt.Sprintf("Твое ближайшее расписание на %s %d:\n\n", toDay(offset), monthDay))
 		} else {
 			sb.WriteString(fmt.Sprintf("День: %s\n\n", toDay(offset)))
 		}
@@ -316,7 +339,7 @@ func (b *Bot) register(chatID int64, from *api.User) {
 		Nickname:       from.UserName,
 		Admin:          false,
 		Subscribed:     true,
-		SubscribedPair: true,
+		SubscribedPair: false,
 	}
 	err := b.storage.AddUser(us)
 	if err != nil {
