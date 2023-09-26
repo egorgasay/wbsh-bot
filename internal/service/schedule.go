@@ -394,6 +394,7 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 
 	goodPairs := lengths[0]
 	// wrongPairs := -1
+
 	goodKabs := 0
 	if len(lengths) == 1 {
 		goodKabs = lengths[0]
@@ -420,25 +421,33 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 			continue
 		}
 
+		if gname == "04 74-20" {
+			print()
+		}
+
 		col = col[1:]
-
-		//if gname == "04 74-20" {
-		//	print()
-		//}
-		//
-		//if gname == "03 70-23" {
-		//	print()
-		//}
-
 		week := make(week, 5)
 
 		var iCapCopy = make([]int, len(iCap))
 		copy(iCapCopy, iCap)
 
-		if len(col) != goodPairs && len(col) != goodKabs {
-			for i := range iCap {
-				iCap[i] *= 2
+		if len(col) != goodPairs || len(col) != goodKabs {
+			//for i := range iCap {
+			//	iCap[i] *= 2
+			//}
+
+			var tempCols []string
+			for i := 0; i < len(col); i++ {
+				if i%2 == 0 {
+					tempCols = append(tempCols, col[i])
+				}
 			}
+			col = tempCols[:func() int {
+				if len(col) < 31 {
+					return len(col) / 2
+				}
+				return 31
+			}()]
 		}
 
 		i := 0
