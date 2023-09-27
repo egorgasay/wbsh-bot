@@ -393,7 +393,7 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 	lengths := allLengths(cols)
 
 	goodPairs := lengths[0]
-	// wrongPairs := -1
+	wrongPairs := -1
 
 	goodKabs := 0
 	if len(lengths) == 1 {
@@ -401,28 +401,61 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 	} else {
 		goodKabs = lengths[1]
 	}
-	// wrongKabs := -1
+	wrongKabs := -1
 
 	if len(lengths) == 4 {
 		goodPairs = lengths[0]
-		// wrongPairs = lengths[1]
-		goodKabs = lengths[3]
-		// wrongKabs = lengths[3]
+		wrongPairs = lengths[1]
+		goodKabs = lengths[2]
+		wrongKabs = lengths[3]
+	}
+
+	if len(lengths) == 3 {
+		goodPairs = lengths[0]
+		wrongPairs = lengths[1]
+		goodKabs = lengths[0]
+		wrongKabs = lengths[1]
 	}
 
 	// because of col = col[1:]
 	goodPairs--
 	goodKabs--
+	wrongPairs--
+	wrongKabs--
+
+	clearData := func(col []string) []string {
+		var tempCols []string
+		var first = col[0]
+
+		col = col[1:]
+
+		for i := 0; i < len(col); i++ {
+			if i%2 == 0 {
+				tempCols = append(tempCols, col[i])
+			}
+		}
+
+		res := tempCols[:func() int {
+			if len(col) < 31 {
+				return len(col)
+			}
+			return 31
+		}()]
+
+		return append([]string{first}, res...)
+	}
+
+	for colsIndx, col := range cols {
+		if len(col) >= wrongKabs {
+			cols[colsIndx] = clearData(col)
+		}
+	}
 
 	for colsIndx, col := range cols {
 		gname := col[0]
 
-		if gname == "" {
+		if gname == "" || gname == "День\nнеде" || gname == "Время" {
 			continue
-		}
-
-		if gname == "04 74-20" {
-			print()
 		}
 
 		col = col[1:]
@@ -430,25 +463,6 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 
 		var iCapCopy = make([]int, len(iCap))
 		copy(iCapCopy, iCap)
-
-		if len(col) != goodPairs || len(col) != goodKabs {
-			//for i := range iCap {
-			//	iCap[i] *= 2
-			//}
-
-			var tempCols []string
-			for i := 0; i < len(col); i++ {
-				if i%2 == 0 {
-					tempCols = append(tempCols, col[i])
-				}
-			}
-			col = tempCols[:func() int {
-				if len(col) < 31 {
-					return len(col) / 2
-				}
-				return 31
-			}()]
-		}
 
 		i := 0
 		for cellIndex, cell := range col {
@@ -463,6 +477,10 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 
 			if cell == "" {
 				continue
+			}
+
+			if colsIndx == 185 {
+				print()
 			}
 
 			week[i] = append(week[i], kabAndPair{

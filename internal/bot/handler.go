@@ -241,7 +241,7 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 		offset = weekdayToInt(weekDay)
 		needNew = true
 	}
-	monthDay := time.Now().Add(time.Hour * 24 * time.Duration(offset)).Day()
+	monthDay := time.Now().Add(time.Hour * 24 * time.Duration(offset-int(weekDay)+1)).Day()
 
 	defer func() {
 		if needNew {
