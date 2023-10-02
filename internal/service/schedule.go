@@ -437,7 +437,7 @@ func colsToMap(cols [][]string, maxPairPerDay int) map[group]week {
 
 		res := tempCols[:func() int {
 			if len(col) < 31 {
-				return len(col)
+				return len(tempCols)
 			}
 			return 31
 		}()]

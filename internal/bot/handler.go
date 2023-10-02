@@ -286,7 +286,7 @@ func (b *Bot) handleSchedule(text string, msgID int, user table.User) (msg api.C
 			case ErrNoPair:
 				sb.WriteString(
 					fmt.Sprintf(
-						"№%d\nПара не найдена, проверьте на сайте на всякий случай)\n\n", i+1,
+						"№%d\nНет\n\n", i+1,
 					),
 				)
 			}
